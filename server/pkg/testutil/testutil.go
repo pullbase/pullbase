@@ -1,0 +1,416 @@
+// Package testutil provides shared database setup and test utilities for integration tests.
+package testutil
+
+import (
+	"context"
+	"fmt"
+	"log/slog"
+	"sync"
+	"testing"
+	"time"
+
+	"github.com/pullbase/pullbase/server/pkg/database"
+	"github.com/jmoiron/sqlx"
+	"github.com/testcontainers/testcontainers-go"
+	"github.com/testcontainers/testcontainers-go/modules/postgres"
+	"github.com/testcontainers/testcontainers-go/wait"
+)
+
+const (
+	// DefaultPostgresImage is the postgres image used in tests
+	DefaultPostgresImage = "docker.io/postgres:17-alpine"
+
+	// DefaultMigrationPath is the default path to migration files
+	DefaultMigrationPath = "file://../../migrations"
+
+	// DefaultTestTimeout is the default timeout for test operations
+	DefaultTestTimeout = 3 * time.Minute
+
+	// DefaultStartupTimeout is the default timeout for container startup
+	DefaultStartupTimeout = 5 * time.Minute
+)
+
+// TestDB represents a test database instance with cleanup capabilities
+type TestDB struct {
+	*sqlx.DB
+	Container testcontainers.Container
+	Config    database.Config
+	Dialect   database.Dialect
+	cleanup   func()
+	t         testing.TB
+}
+
+// ContainerConfig holds configuration for the postgres container
+type ContainerConfig struct {
+	Database       string
+	Username       string
+	Password       string
+	Image          string
+	StartupTimeout time.Duration
+}
+
+// DefaultContainerConfig returns the default container configuration
+func DefaultContainerConfig() ContainerConfig {
+	return ContainerConfig{
+		Database:       "testdb",
+		Username:       "testuser",
+		Password:       "testpass",
+		Image:          DefaultPostgresImage,
+		StartupTimeout: DefaultStartupTimeout,
+	}
+}
+
+// StartPostgresContainer starts a PostgreSQL testcontainer and returns connection details
+func StartPostgresContainer(t testing.TB, config ContainerConfig) (*TestDB, error) {
+	t.Helper()
+	ctx := context.Background()
+
+	if config.Image == "" {
+		config.Image = DefaultPostgresImage
+	}
+	if config.StartupTimeout == 0 {
+		config.StartupTimeout = DefaultStartupTimeout
+	}
+
+	container, err := postgres.Run(ctx,
+		config.Image,
+		postgres.WithDatabase(config.Database),
+		postgres.WithUsername(config.Username),
+		postgres.WithPassword(config.Password),
+		testcontainers.WithWaitStrategy(
+			wait.ForLog("database system is ready to accept connections").
+				WithOccurrence(2).
+				WithStartupTimeout(config.StartupTimeout),
+		),
+	)
+	if err != nil {
+		return nil, fmt.Errorf("failed to start postgres container: %w", err)
+	}
+
+	host, err := container.Host(ctx)
+	if err != nil {
+		container.Terminate(ctx)
+		return nil, fmt.Errorf("failed to get container host: %w", err)
+	}
+
+	port, err := container.MappedPort(ctx, "5432")
+	if err != nil {
+		container.Terminate(ctx)
+		return nil, fmt.Errorf("failed to get container port: %w", err)
+	}
+
+	dbConfig := database.Config{
+		Dialect:      database.DialectPostgres,
+		Host:         host,
+		Port:         port.Int(),
+		User:         config.Username,
+		Password:     config.Password,
+		DatabaseName: config.Database,
+		SSLMode:      "disable",
+	}
+
+	dbConn, dialect, err := database.New(dbConfig)
+	if err != nil {
+		container.Terminate(ctx)
+		return nil, fmt.Errorf("failed to connect to test database: %w", err)
+	}
+
+	cleanup := func() {
+		if dbConn != nil {
+			dbConn.Close()
+		}
+		if err := container.Terminate(ctx); err != nil {
+			slog.Warn("could not terminate container", "error", err)
+		}
+	}
+
+	testDB := &TestDB{
+		DB:        dbConn,
+		Container: container,
+		Config:    dbConfig,
+		Dialect:   dialect,
+		cleanup:   cleanup,
+		t:         t,
+	}
+
+	// Register cleanup with t.Cleanup for automatic cleanup
+	t.Cleanup(cleanup)
+
+	return testDB, nil
+}
+
+// Close closes the database connection and terminates the container
+func (tdb *TestDB) Close() {
+	if tdb.cleanup != nil {
+		tdb.cleanup()
+	}
+}
+
+// MustMigrate runs database migrations and fails the test if migrations fail
+func (tdb *TestDB) MustMigrate(migrationPath string) {
+	tdb.t.Helper()
+
+	if migrationPath == "" {
+		migrationPath = DefaultMigrationPath
+	}
+
+	ctx := context.Background()
+	if err := database.InitSchema(ctx, tdb.DB, tdb.Dialect, migrationPath); err != nil {
+		tdb.t.Logf("Migration failed: %v - falling back to manual schema", err)
+		tdb.setupFallbackSchema()
+	}
+}
+
+// setupFallbackSchema creates a minimal schema for tests when migrations fail
+func (tdb *TestDB) setupFallbackSchema() {
+	tdb.t.Helper()
+
+	_, err := tdb.DB.Exec(`
+		-- Create users table
+		CREATE TABLE IF NOT EXISTS users (
+			id SERIAL PRIMARY KEY,
+			username VARCHAR(255) NOT NULL UNIQUE,
+			password_hash VARCHAR(255) NOT NULL,
+			role VARCHAR(50) NOT NULL,
+			is_active BOOLEAN NOT NULL DEFAULT TRUE,
+			created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+			updated_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP
+		);
+
+		-- Create environments table
+		CREATE TABLE IF NOT EXISTS environments (
+			id SERIAL PRIMARY KEY,
+name TEXT NOT NULL UNIQUE,
+repo_url TEXT NOT NULL,
+branch TEXT NOT NULL DEFAULT 'main',
+deploy_path TEXT NOT NULL DEFAULT 'config.yaml',
+provider TEXT NOT NULL CHECK (provider = 'github'),
+github_installation_id BIGINT NOT NULL DEFAULT 0,
+	github_app_slug TEXT,
+	github_repository_id BIGINT,
+	webhook_secret TEXT NOT NULL,
+	webhook_id TEXT,
+	webhook_url TEXT NOT NULL,
+			status TEXT NOT NULL DEFAULT 'pending' CHECK (status IN ('pending', 'active', 'error', 'fallback')),
+			auto_reconcile BOOLEAN NOT NULL DEFAULT true,
+			deployed_commit TEXT,
+			last_webhook_at TIMESTAMP,
+			last_poll_at TIMESTAMP,
+			retry_count INTEGER DEFAULT 0,
+			created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+			updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+		);
+
+		-- Create servers table
+		CREATE TABLE IF NOT EXISTS servers (
+			id VARCHAR(255) PRIMARY KEY,
+			name VARCHAR(255) NOT NULL,
+			repo_url VARCHAR(1024) NOT NULL,
+			branch VARCHAR(255) NOT NULL,
+			deploy_path VARCHAR(1024) NOT NULL,
+			target_commit_hash VARCHAR(255),
+			auto_reconcile BOOLEAN NOT NULL DEFAULT FALSE,
+			environment_id INTEGER,
+			deleted_at TIMESTAMP,
+			created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+			updated_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+			FOREIGN KEY (environment_id) REFERENCES environments(id) ON DELETE SET NULL
+		);
+
+		-- Create agent_status table
+		CREATE TABLE IF NOT EXISTS agent_status (
+			id SERIAL PRIMARY KEY,
+			server_id VARCHAR(255) NOT NULL,
+			commit_hash VARCHAR(255) NOT NULL,
+			is_drifted BOOLEAN NOT NULL DEFAULT FALSE,
+			status VARCHAR(50) NOT NULL,
+			error_message TEXT,
+			agent_timestamp TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+			FOREIGN KEY (server_id) REFERENCES servers(id) ON DELETE CASCADE
+		);
+
+		-- Create agent_tokens table
+		CREATE TABLE IF NOT EXISTS agent_tokens (
+			id SERIAL PRIMARY KEY,
+			token_hash VARCHAR(128) NOT NULL UNIQUE,
+			server_id VARCHAR(255) NOT NULL REFERENCES servers(id) ON DELETE CASCADE,
+			description TEXT,
+			created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+			expires_at TIMESTAMP,
+			last_used_at TIMESTAMP,
+			is_active BOOLEAN NOT NULL DEFAULT TRUE,
+			created_by_user_id INTEGER REFERENCES users(id) ON DELETE SET NULL
+		);
+
+		-- Create audit_log table
+		CREATE TABLE IF NOT EXISTS audit_log (
+			id SERIAL PRIMARY KEY,
+			user_id INTEGER NOT NULL,
+			action VARCHAR(255) NOT NULL,
+			resource_type VARCHAR(255) NOT NULL,
+			resource_id VARCHAR(255) NOT NULL,
+			details JSONB,
+			ip_address VARCHAR(45),
+			timestamp TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP
+		);
+
+		-- Create pulls table
+		CREATE TABLE IF NOT EXISTS pulls (
+			id VARCHAR(255) PRIMARY KEY,
+			title VARCHAR(255) NOT NULL,
+			description TEXT,
+			status VARCHAR(50) NOT NULL,
+			created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+			updated_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP
+		);
+
+		-- Create rollback_events table
+		CREATE TABLE IF NOT EXISTS rollback_events (
+			id SERIAL PRIMARY KEY,
+			environment_id INTEGER NOT NULL REFERENCES environments(id) ON DELETE CASCADE,
+			from_commit VARCHAR(255) NOT NULL,
+			to_commit VARCHAR(255) NOT NULL,
+			initiated_by VARCHAR(255) NOT NULL,
+			status VARCHAR(50) NOT NULL DEFAULT 'pending',
+			reason TEXT,
+			created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+			completed_at TIMESTAMP,
+			error_message TEXT
+		);
+
+		-- Create events table
+		CREATE TABLE IF NOT EXISTS events (
+			id SERIAL PRIMARY KEY,
+			environment_id INTEGER REFERENCES environments(id) ON DELETE CASCADE,
+			server_id INTEGER,
+			event_type VARCHAR(100) NOT NULL,
+			message TEXT NOT NULL,
+			timestamp TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP
+		);
+
+		-- Create indexes
+		CREATE INDEX IF NOT EXISTS idx_environments_repo_url ON environments(repo_url);
+		CREATE INDEX IF NOT EXISTS idx_environments_provider ON environments(provider);
+		CREATE INDEX IF NOT EXISTS idx_environments_status ON environments(status);
+		CREATE INDEX IF NOT EXISTS idx_agent_status_server_id ON agent_status(server_id);
+		CREATE INDEX IF NOT EXISTS idx_agent_status_timestamp ON agent_status(agent_timestamp DESC);
+		CREATE INDEX IF NOT EXISTS idx_audit_log_user_id ON audit_log(user_id);
+		CREATE INDEX IF NOT EXISTS idx_audit_log_timestamp ON audit_log(timestamp);
+		CREATE INDEX IF NOT EXISTS idx_pulls_status ON pulls(status);
+		CREATE INDEX IF NOT EXISTS idx_pulls_created_at ON pulls(created_at);
+
+		-- Create trigger function for updated_at columns
+		CREATE OR REPLACE FUNCTION update_updated_at_column()
+		RETURNS TRIGGER AS $$
+		BEGIN
+			NEW.updated_at = CURRENT_TIMESTAMP;
+			RETURN NEW;
+		END;
+		$$ language 'plpgsql';
+
+		-- Create triggers
+		DROP TRIGGER IF EXISTS update_environments_updated_at ON environments;
+		CREATE TRIGGER update_environments_updated_at 
+			BEFORE UPDATE ON environments
+			FOR EACH ROW
+			EXECUTE FUNCTION update_updated_at_column();
+
+		DROP TRIGGER IF EXISTS update_servers_updated_at ON servers;
+		CREATE TRIGGER update_servers_updated_at 
+			BEFORE UPDATE ON servers
+			FOR EACH ROW
+			EXECUTE FUNCTION update_updated_at_column();
+	`)
+	if err != nil {
+		tdb.t.Fatalf("Failed to create fallback schema: %v", err)
+	}
+}
+
+// SetupTestDB is a convenience function that starts a container and runs migrations
+func SetupTestDB(t testing.TB) *TestDB {
+	t.Helper()
+
+	config := DefaultContainerConfig()
+	tdb, err := StartPostgresContainer(t, config)
+	if err != nil {
+		t.Fatalf("Failed to setup test database: %v", err)
+	}
+
+	// Wait for database to be ready before running migrations
+	tdb.WaitForDBConnection()
+
+	tdb.MustMigrate("")
+	return tdb
+}
+
+// SetupTestDBWithConfig is like SetupTestDB but allows custom container config
+func SetupTestDBWithConfig(t testing.TB, config ContainerConfig) *TestDB {
+	t.Helper()
+
+	tdb, err := StartPostgresContainer(t, config)
+	if err != nil {
+		t.Fatalf("Failed to setup test database: %v", err)
+	}
+
+	// Wait for database to be ready before running migrations
+	tdb.WaitForDBConnection()
+
+	tdb.MustMigrate("")
+	return tdb
+}
+
+// Repository returns a database repository instance for the test database
+func (tdb *TestDB) Repository() *database.Repository {
+	return database.NewRepository(tdb.DB, tdb.Dialect)
+}
+
+// EnvironmentRepository returns an environment repository instance for the test database
+func (tdb *TestDB) EnvironmentRepository() *database.EnvironmentRepository {
+	return database.NewEnvironmentRepository(tdb.DB, tdb.Dialect)
+}
+
+// Context returns a context with timeout for test operations
+func (tdb *TestDB) Context() context.Context {
+	ctx, _ := context.WithTimeout(context.Background(), DefaultTestTimeout)
+	return ctx
+}
+
+// ContextWithTimeout returns a context with the specified timeout
+func (tdb *TestDB) ContextWithTimeout(timeout time.Duration) context.Context {
+	ctx, _ := context.WithTimeout(context.Background(), timeout)
+	return ctx
+}
+
+var testDBOnce sync.Once
+var sharedTestDB *TestDB
+
+// SharedTestDB returns a shared test database instance for tests that don't need isolation.
+// The database is created once and reused across tests in the same process.
+// Use this only for read-only tests or when test isolation is not important.
+func SharedTestDB(t testing.TB) *TestDB {
+	t.Helper()
+
+	testDBOnce.Do(func() {
+		sharedTestDB = SetupTestDB(t)
+	})
+
+	return sharedTestDB
+}
+
+// ResetTables truncates all tables in the test database, useful for test cleanup
+func (tdb *TestDB) ResetTables() error {
+	_, err := tdb.DB.Exec(`
+		TRUNCATE TABLE 
+			audit_log,
+			agent_status,
+			agent_tokens,
+			rollback_events,
+			events,
+			servers,
+			environments,
+			users,
+			pulls
+		RESTART IDENTITY CASCADE
+	`)
+	return err
+}

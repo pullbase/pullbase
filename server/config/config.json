@@ -1,0 +1,26 @@
+{
+    "database": {
+        "host": "localhost",
+        "port": 5432,
+        "user": "postgres",
+        "password": "postgres",
+        "dbname": "pullbase",
+        "sslmode": "disable"
+    },
+    "server": {
+        "port": 8080,
+        "host": "0.0.0.0"
+    },
+    "jwt": {
+        "secret": "change-me-in-production",
+        "expiry_hours": 24
+    },
+    "git": {
+        "clone_path": "./git-repos",
+        "poll_interval_seconds": 60000000000,
+        "enabled": true
+    },
+    "migrations": {
+        "path": "file://migrations"
+    }
+}

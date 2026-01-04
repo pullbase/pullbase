@@ -1,0 +1,155 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  :root {
+    color-scheme: dark;
+  }
+
+  body {
+    @apply bg-studio-black text-studio-text font-sans antialiased selection:bg-studio-accent selection:text-white overflow-x-hidden;
+  }
+}
+
+/* Background grid mask */
+.technical-grid {
+  background-size: 50px 50px;
+  mask-image: radial-gradient(circle at center, black 40%, transparent 80%);
+  -webkit-mask-image: radial-gradient(circle at center, black 40%, transparent 80%);
+}
+
+/* Custom scrollbar */
+::-webkit-scrollbar {
+  width: 8px;
+}
+::-webkit-scrollbar-track {
+  background: #050505;
+}
+::-webkit-scrollbar-thumb {
+  background: #333;
+  border-radius: 0;
+}
+::-webkit-scrollbar-thumb:hover {
+  background: #555;
+}
+
+/* Card styling with spotlight */
+.tech-card {
+  position: relative;
+  background: #0A0A0A;
+  border: 1px solid #222;
+  transition: transform 0.2s cubic-bezier(0.2, 0.8, 0.2, 1), border-color 0.3s ease;
+  overflow: hidden;
+}
+
+.tech-card::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  background: radial-gradient(800px circle at var(--mouse-x) var(--mouse-y), rgba(255, 255, 255, 0.04), transparent 40%);
+  opacity: 0;
+  transition: opacity 0.3s ease;
+  pointer-events: none;
+  z-index: 1;
+}
+
+.tech-card:hover::before {
+  opacity: 1;
+}
+
+.tech-card:hover {
+  border-color: #333;
+  transform: translateY(-6px);
+}
+
+.tech-card > :not(.corner-marker):not(.scanline) {
+  position: relative;
+  z-index: 2;
+}
+
+/* Reveal on scroll */
+.reveal {
+  opacity: 0;
+  transform: translateY(24px);
+  transition: transform 0.6s ease, opacity 0.6s ease;
+  transition-delay: var(--delay, 0s);
+}
+
+.reveal.visible {
+  opacity: 1;
+  transform: translateY(0);
+}
+
+/* Corner markers */
+.corner-marker {
+  position: absolute;
+  width: 6px;
+  height: 6px;
+  border-color: #555;
+  border-style: solid;
+  transition: all 0.3s ease;
+  z-index: 10;
+}
+
+.tech-card:hover .corner-marker {
+  border-color: #3b82f6;
+}
+
+.top-left {
+  top: -1px;
+  left: -1px;
+  border-width: 1px 0 0 1px;
+}
+
+.top-right {
+  top: -1px;
+  right: -1px;
+  border-width: 1px 1px 0 0;
+}
+
+.bottom-left {
+  bottom: -1px;
+  left: -1px;
+  border-width: 0 0 1px 1px;
+}
+
+.bottom-right {
+  bottom: -1px;
+  right: -1px;
+  border-width: 0 1px 1px 0;
+}
+
+/* Scanline animation */
+@keyframes scan {
+  0% {
+    transform: translateY(-100%);
+  }
+  100% {
+    transform: translateY(100%);
+  }
+}
+
+.scanline {
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(to bottom, transparent, rgba(59, 130, 246, 0.05), transparent);
+  animation: scan 8s linear infinite;
+  pointer-events: none;
+  z-index: 1;
+}
+
+/* Code syntax */
+.token.key {
+  color: #93c5fd;
+}
+.token.string {
+  color: #a7f3d0;
+}
+.token.number {
+  color: #fca5a5;
+}
+.token.comment {
+  color: #525252;
+  font-style: italic;
+}

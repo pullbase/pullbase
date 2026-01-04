@@ -1,0 +1,1769 @@
+basePath: /api/v1
+definitions:
+  github_com_pullbase_pullbase_server_pkg_apierrors.Error:
+    properties:
+      err:
+        description: Underlying error, if any
+      kind:
+        allOf:
+        - $ref: '#/definitions/github_com_pullbase_pullbase_server_pkg_apierrors.Kind'
+        description: The category of error
+      message:
+        description: Human-readable error message
+        type: string
+      op:
+        description: Operation that failed (e.g., "GetServer", "CreateUser")
+        type: string
+    type: object
+  github_com_pullbase_pullbase_server_pkg_apierrors.Kind:
+    enum:
+    - 0
+    - 1
+    - 2
+    - 3
+    - 4
+    - 5
+    - 6
+    - 7
+    - 8
+    - 9
+    type: integer
+    x-enum-varnames:
+    - KindUnknown
+    - KindNotFound
+    - KindUnauthorized
+    - KindForbidden
+    - KindValidation
+    - KindConflict
+    - KindInternal
+    - KindBadRequest
+    - KindTooManyRequests
+    - KindNotImplemented
+  github_com_pullbase_pullbase_server_pkg_configvalidate.ValidationError:
+    properties:
+      column:
+        type: integer
+      field:
+        type: string
+      line:
+        type: integer
+      message:
+        type: string
+    type: object
+  github_com_pullbase_pullbase_server_pkg_models.AgentToken:
+    properties:
+      created_at:
+        type: string
+      created_by_user_id:
+        type: integer
+      description:
+        type: string
+      expires_at:
+        type: string
+      id:
+        type: integer
+      is_active:
+        type: boolean
+      last_used_at:
+        type: string
+      server_id:
+        type: string
+    type: object
+  github_com_pullbase_pullbase_server_pkg_models.GitProvider:
+    enum:
+    - github
+    type: string
+    x-enum-varnames:
+    - ProviderGitHub
+  github_com_pullbase_pullbase_server_pkg_models.Server:
+    properties:
+      auto_reconcile:
+        type: boolean
+      created_at:
+        type: string
+      environment_id:
+        type: integer
+      id:
+        type: string
+      name:
+        type: string
+      target_commit_hash:
+        type: string
+      updated_at:
+        type: string
+    type: object
+  github_com_pullbase_pullbase_server_pkg_models.ServerWithStatus:
+    properties:
+      auto_reconcile:
+        type: boolean
+      created_at:
+        type: string
+      environment_id:
+        type: integer
+      environment_name:
+        type: string
+      id:
+        type: string
+      last_agent_version:
+        type: string
+      last_commit_hash:
+        type: string
+      last_error_message:
+        type: string
+      last_is_drifted:
+        type: boolean
+      last_status:
+        type: string
+      last_timestamp:
+        type: string
+      name:
+        type: string
+      target_commit_hash:
+        type: string
+      updated_at:
+        type: string
+    type: object
+  pkg_server.AgentConnectivityEntry:
+    properties:
+      is_online:
+        type: boolean
+      last_seen:
+        type: string
+      server_id:
+        type: string
+      server_name:
+        type: string
+      status:
+        type: string
+    type: object
+  pkg_server.AgentConnectivityResponse:
+    properties:
+      agent_statuses:
+        items:
+          $ref: '#/definitions/pkg_server.AgentConnectivityEntry'
+        type: array
+      offline_agents:
+        type: integer
+      online_agents:
+        type: integer
+      stale_threshold:
+        type: string
+      total_agents:
+        type: integer
+    type: object
+  pkg_server.AgentGitTokenResponse:
+    properties:
+      app_slug:
+        type: string
+      authentication:
+        type: string
+      expires_at:
+        type: string
+      installation_id:
+        type: integer
+      provider:
+        $ref: '#/definitions/github_com_pullbase_pullbase_server_pkg_models.GitProvider'
+      repo_url:
+        type: string
+      repository_id:
+        type: integer
+      token:
+        type: string
+    type: object
+  pkg_server.AgentStatusPayload:
+    properties:
+      agent_version:
+        type: string
+      commit_hash:
+        type: string
+      drift_details:
+        items:
+          type: integer
+        type: array
+      error_message:
+        type: string
+      is_drifted:
+        type: boolean
+      status:
+        type: string
+    type: object
+  pkg_server.BootstrapAdminRequest:
+    properties:
+      bootstrap_secret:
+        type: string
+      password:
+        type: string
+      username:
+        type: string
+    type: object
+  pkg_server.BootstrapAdminResponse:
+    properties:
+      access_token:
+        type: string
+      user:
+        $ref: '#/definitions/pkg_server.UserSummary'
+    type: object
+  pkg_server.CheckResult:
+    properties:
+      error:
+        type: string
+      latency_ms:
+        type: integer
+      status:
+        $ref: '#/definitions/pkg_server.HealthStatus'
+      version:
+        type: integer
+    type: object
+  pkg_server.CreateServerRequest:
+    properties:
+      environment_id:
+        type: integer
+      id:
+        type: string
+      name:
+        type: string
+    type: object
+  pkg_server.CreateServerResponse:
+    properties:
+      agent_token:
+        type: string
+      auto_reconcile:
+        type: boolean
+      created_at:
+        type: string
+      environment_id:
+        type: integer
+      id:
+        type: string
+      installation_info:
+        properties:
+          example_cmd:
+            type: string
+          instructions:
+            type: string
+        type: object
+      name:
+        type: string
+      target_commit_hash:
+        type: string
+      updated_at:
+        type: string
+    type: object
+  pkg_server.CreateServerTokenRequest:
+    properties:
+      description:
+        type: string
+      expires_in:
+        description: Optional expiration in days
+        type: integer
+    type: object
+  pkg_server.CreateServerTokenResponse:
+    properties:
+      created_at:
+        type: string
+      created_by_user_id:
+        type: integer
+      description:
+        type: string
+      expires_at:
+        type: string
+      id:
+        type: integer
+      installation_info:
+        properties:
+          example_cmd:
+            type: string
+          instructions:
+            type: string
+        type: object
+      is_active:
+        type: boolean
+      last_used_at:
+        type: string
+      server_id:
+        type: string
+      token:
+        description: The actual token (only returned once)
+        type: string
+    type: object
+  pkg_server.CreateUserRequest:
+    properties:
+      password:
+        type: string
+      role:
+        type: string
+      username:
+        type: string
+    type: object
+  pkg_server.CreateUserResponse:
+    properties:
+      user:
+        $ref: '#/definitions/pkg_server.UserSummary'
+    type: object
+  pkg_server.DeleteUserRequest:
+    properties:
+      confirm_username:
+        type: string
+    type: object
+  pkg_server.DriftDetailsResponse:
+    properties:
+      commit_hash:
+        type: string
+      detected_at:
+        type: string
+      drift_details:
+        items:
+          type: integer
+        type: array
+      is_drifted:
+        type: boolean
+      server_id:
+        type: string
+      server_name:
+        type: string
+    type: object
+  pkg_server.DriftMetricsResponse:
+    properties:
+      period:
+        type: string
+      time_series:
+        items:
+          $ref: '#/definitions/pkg_server.TimeSeriesPoint'
+        type: array
+      total_events:
+        type: integer
+    type: object
+  pkg_server.ErrorResponse:
+    properties:
+      error:
+        type: string
+    type: object
+  pkg_server.HealthCheckResponse:
+    properties:
+      checks:
+        additionalProperties:
+          $ref: '#/definitions/pkg_server.CheckResult'
+        type: object
+      service:
+        type: string
+      status:
+        $ref: '#/definitions/pkg_server.HealthStatus'
+    type: object
+  pkg_server.HealthStatus:
+    enum:
+    - healthy
+    - degraded
+    - unhealthy
+    - unknown
+    type: string
+    x-enum-varnames:
+    - HealthStatusHealthy
+    - HealthStatusDegraded
+    - HealthStatusUnhealthy
+    - HealthStatusUnknown
+  pkg_server.ListUsersResponse:
+    properties:
+      limit:
+        type: integer
+      offset:
+        type: integer
+      role:
+        type: string
+      total:
+        type: integer
+      users:
+        items:
+          $ref: '#/definitions/pkg_server.UserSummary'
+        type: array
+    type: object
+  pkg_server.LoginRequest:
+    properties:
+      environment_id:
+        type: integer
+      password:
+        type: string
+      server_id:
+        description: For backward compatibility
+        type: string
+      username:
+        type: string
+    type: object
+  pkg_server.LoginResponse:
+    properties:
+      access_token:
+        type: string
+      user:
+        $ref: '#/definitions/pkg_server.UserSummary'
+    type: object
+  pkg_server.ReconciliationMetricsResponse:
+    properties:
+      period:
+        type: string
+      success_rate:
+        type: number
+      time_series:
+        items:
+          $ref: '#/definitions/pkg_server.TimeSeriesPoint'
+        type: array
+      total_applied:
+        type: integer
+      total_failed:
+        type: integer
+    type: object
+  pkg_server.ServerInfoResponse:
+    properties:
+      auto_reconcile:
+        type: boolean
+      branch:
+        type: string
+      deploy_path:
+        type: string
+      repo_url:
+        type: string
+      target_commit_hash:
+        type: string
+    type: object
+  pkg_server.TimeSeriesPoint:
+    properties:
+      timestamp:
+        type: string
+      value:
+        type: integer
+    type: object
+  pkg_server.UpdateServerRequest:
+    properties:
+      name:
+        type: string
+    type: object
+  pkg_server.UserSummary:
+    properties:
+      id:
+        type: integer
+      role:
+        type: string
+      username:
+        type: string
+    type: object
+  pkg_server.ValidateConfigResponse:
+    properties:
+      errors:
+        items:
+          $ref: '#/definitions/github_com_pullbase_pullbase_server_pkg_configvalidate.ValidationError'
+        type: array
+      valid:
+        type: boolean
+    type: object
+host: localhost:8080
+info:
+  contact:
+    name: Pullbase Support
+    url: https://github.com/pullbase/pullbase
+  description: GitOps for Servers - Git-driven configuration management for VMs and
+    bare-metal servers.
+  license:
+    name: MIT
+    url: https://opensource.org/licenses/MIT
+  termsOfService: https://pullbase.io/terms
+  title: Pullbase API
+  version: "1.0"
+paths:
+  /agent/git-token:
+    get:
+      consumes:
+      - application/json
+      description: Returns a GitHub installation token for repository access. Rate
+        limited.
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/pkg_server.AgentGitTokenResponse'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/github_com_pullbase_pullbase_server_pkg_apierrors.Error'
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/github_com_pullbase_pullbase_server_pkg_apierrors.Error'
+        "429":
+          description: Too Many Requests
+          schema:
+            $ref: '#/definitions/github_com_pullbase_pullbase_server_pkg_apierrors.Error'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/github_com_pullbase_pullbase_server_pkg_apierrors.Error'
+        "501":
+          description: Not Implemented
+          schema:
+            $ref: '#/definitions/github_com_pullbase_pullbase_server_pkg_apierrors.Error'
+      security:
+      - AgentAuth: []
+      summary: Request Git token
+      tags:
+      - Agent
+  /agent/server-info:
+    get:
+      consumes:
+      - application/json
+      description: Returns repository configuration for a server. Authenticated via
+        agent token.
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/pkg_server.ServerInfoResponse'
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/github_com_pullbase_pullbase_server_pkg_apierrors.Error'
+        "404":
+          description: Not Found
+          schema:
+            $ref: '#/definitions/github_com_pullbase_pullbase_server_pkg_apierrors.Error'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/github_com_pullbase_pullbase_server_pkg_apierrors.Error'
+      security:
+      - AgentAuth: []
+      summary: Get server info (Agent Token)
+      tags:
+      - Agent
+  /agent/status:
+    post:
+      consumes:
+      - application/json
+      description: Receives status updates from agents including drift detection and
+        errors. Authenticated via agent token.
+      parameters:
+      - description: Status update payload
+        in: body
+        name: request
+        required: true
+        schema:
+          $ref: '#/definitions/pkg_server.AgentStatusPayload'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/github_com_pullbase_pullbase_server_pkg_apierrors.Error'
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/github_com_pullbase_pullbase_server_pkg_apierrors.Error'
+        "404":
+          description: Not Found
+          schema:
+            $ref: '#/definitions/github_com_pullbase_pullbase_server_pkg_apierrors.Error'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/github_com_pullbase_pullbase_server_pkg_apierrors.Error'
+      security:
+      - AgentAuth: []
+      summary: Update agent status (Agent Token)
+      tags:
+      - Agent
+  /auth/login:
+    post:
+      consumes:
+      - application/json
+      description: Authenticate with username and password to receive a JWT token.
+      parameters:
+      - description: Login credentials
+        in: body
+        name: request
+        required: true
+        schema:
+          $ref: '#/definitions/pkg_server.LoginRequest'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/pkg_server.LoginResponse'
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/pkg_server.ErrorResponse'
+      summary: User login
+      tags:
+      - Auth
+  /auth/me:
+    get:
+      description: Get the authenticated user's information.
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/pkg_server.UserSummary'
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/pkg_server.ErrorResponse'
+      security:
+      - BearerAuth: []
+      summary: Get current user
+      tags:
+      - Auth
+  /bootstrap/admin:
+    post:
+      consumes:
+      - application/json
+      description: Create the first admin user using the bootstrap secret. Only available
+        when bootstrap is enabled.
+      parameters:
+      - description: Bootstrap credentials
+        in: body
+        name: request
+        required: true
+        schema:
+          $ref: '#/definitions/pkg_server.BootstrapAdminRequest'
+      produces:
+      - application/json
+      responses:
+        "201":
+          description: Created
+          schema:
+            $ref: '#/definitions/pkg_server.BootstrapAdminResponse'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/pkg_server.ErrorResponse'
+        "403":
+          description: Forbidden
+          schema:
+            $ref: '#/definitions/pkg_server.ErrorResponse'
+        "429":
+          description: Too Many Requests
+          schema:
+            $ref: '#/definitions/pkg_server.ErrorResponse'
+      summary: Create bootstrap admin
+      tags:
+      - Auth
+  /bootstrap/status:
+    get:
+      description: Check if bootstrap mode is enabled and get the secret file path.
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            additionalProperties: true
+            type: object
+      summary: Get bootstrap status
+      tags:
+      - Auth
+  /environments/{environmentID}/test-webhook:
+    post:
+      consumes:
+      - application/json
+      description: Sends a test notification to the environment's configured webhook
+        URL
+      parameters:
+      - description: Environment ID
+        in: path
+        name: environmentID
+        required: true
+        type: integer
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/pkg_server.ErrorResponse'
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/pkg_server.ErrorResponse'
+        "403":
+          description: Forbidden
+          schema:
+            $ref: '#/definitions/pkg_server.ErrorResponse'
+        "404":
+          description: Not Found
+          schema:
+            $ref: '#/definitions/pkg_server.ErrorResponse'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/pkg_server.ErrorResponse'
+        "502":
+          description: Bad Gateway
+          schema:
+            $ref: '#/definitions/pkg_server.ErrorResponse'
+      security:
+      - BearerAuth: []
+      summary: Test webhook
+      tags:
+      - Webhooks
+  /environments/health:
+    get:
+      consumes:
+      - application/json
+      description: Returns health status for all environments including webhook status
+        and git token rate limits
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            additionalProperties: true
+            type: object
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/pkg_server.ErrorResponse'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/pkg_server.ErrorResponse'
+      security:
+      - BearerAuth: []
+      summary: Get environment health
+      tags:
+      - Environments
+  /healthz:
+    get:
+      description: Kubernetes-style liveness check. Returns healthy if service is
+        running and database is reachable.
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/pkg_server.HealthCheckResponse'
+        "503":
+          description: Service Unavailable
+          schema:
+            $ref: '#/definitions/pkg_server.HealthCheckResponse'
+      summary: Liveness probe
+      tags:
+      - Health
+  /metrics/connectivity:
+    get:
+      description: Get agent online/offline status for all servers.
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/pkg_server.AgentConnectivityResponse'
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/pkg_server.ErrorResponse'
+        "403":
+          description: Forbidden
+          schema:
+            $ref: '#/definitions/pkg_server.ErrorResponse'
+      security:
+      - BearerAuth: []
+      summary: Get agent connectivity
+      tags:
+      - Metrics
+  /metrics/drift:
+    get:
+      description: Get drift event metrics over time.
+      parameters:
+      - default: 7
+        description: Number of days
+        in: query
+        name: days
+        type: integer
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/pkg_server.DriftMetricsResponse'
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/pkg_server.ErrorResponse'
+        "403":
+          description: Forbidden
+          schema:
+            $ref: '#/definitions/pkg_server.ErrorResponse'
+      security:
+      - BearerAuth: []
+      summary: Get drift metrics
+      tags:
+      - Metrics
+  /metrics/reconciliation:
+    get:
+      description: Get reconciliation success/failure metrics over time.
+      parameters:
+      - default: 7
+        description: Number of days
+        in: query
+        name: days
+        type: integer
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/pkg_server.ReconciliationMetricsResponse'
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/pkg_server.ErrorResponse'
+        "403":
+          description: Forbidden
+          schema:
+            $ref: '#/definitions/pkg_server.ErrorResponse'
+      security:
+      - BearerAuth: []
+      summary: Get reconciliation metrics
+      tags:
+      - Metrics
+  /readyz:
+    get:
+      description: Kubernetes-style readiness check. Returns healthy if service is
+        ready to accept traffic.
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/pkg_server.HealthCheckResponse'
+        "503":
+          description: Service Unavailable
+          schema:
+            $ref: '#/definitions/pkg_server.HealthCheckResponse'
+      summary: Readiness probe
+      tags:
+      - Health
+  /servers:
+    get:
+      consumes:
+      - application/json
+      description: Retrieves a paginated list of servers with their latest status
+      parameters:
+      - default: 100
+        description: Maximum number of servers to return (1-500)
+        in: query
+        name: limit
+        type: integer
+      - default: 0
+        description: Number of servers to skip
+        in: query
+        name: offset
+        type: integer
+      - description: Sort field (name, created_at, status)
+        in: query
+        name: sort
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            items:
+              $ref: '#/definitions/github_com_pullbase_pullbase_server_pkg_models.ServerWithStatus'
+            type: array
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/pkg_server.ErrorResponse'
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/pkg_server.ErrorResponse'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/pkg_server.ErrorResponse'
+      security:
+      - BearerAuth: []
+      summary: List all servers
+      tags:
+      - Servers
+    post:
+      consumes:
+      - application/json
+      description: Creates a new server with an initial agent token for deployment
+      parameters:
+      - description: Server creation request
+        in: body
+        name: request
+        required: true
+        schema:
+          $ref: '#/definitions/pkg_server.CreateServerRequest'
+      produces:
+      - application/json
+      responses:
+        "201":
+          description: Created
+          schema:
+            $ref: '#/definitions/pkg_server.CreateServerResponse'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/pkg_server.ErrorResponse'
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/pkg_server.ErrorResponse'
+        "403":
+          description: Forbidden
+          schema:
+            $ref: '#/definitions/pkg_server.ErrorResponse'
+        "409":
+          description: Conflict
+          schema:
+            $ref: '#/definitions/pkg_server.ErrorResponse'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/pkg_server.ErrorResponse'
+      security:
+      - BearerAuth: []
+      summary: Create a new server
+      tags:
+      - Servers
+  /servers/{serverID}:
+    delete:
+      consumes:
+      - application/json
+      description: Soft-deletes a server and deactivates all its agent tokens
+      parameters:
+      - description: Server ID
+        in: path
+        name: serverID
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "204":
+          description: No Content
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/pkg_server.ErrorResponse'
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/pkg_server.ErrorResponse'
+        "403":
+          description: Forbidden
+          schema:
+            $ref: '#/definitions/pkg_server.ErrorResponse'
+        "404":
+          description: Not Found
+          schema:
+            $ref: '#/definitions/pkg_server.ErrorResponse'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/pkg_server.ErrorResponse'
+      security:
+      - BearerAuth: []
+      summary: Delete server
+      tags:
+      - Servers
+    get:
+      consumes:
+      - application/json
+      description: Retrieves detailed information about a specific server including
+        its latest status
+      parameters:
+      - description: Server ID
+        in: path
+        name: serverID
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/github_com_pullbase_pullbase_server_pkg_models.ServerWithStatus'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/pkg_server.ErrorResponse'
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/pkg_server.ErrorResponse'
+        "404":
+          description: Not Found
+          schema:
+            $ref: '#/definitions/pkg_server.ErrorResponse'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/pkg_server.ErrorResponse'
+      security:
+      - BearerAuth: []
+      summary: Get server details
+      tags:
+      - Servers
+    put:
+      consumes:
+      - application/json
+      description: Updates a server's configuration (name only, git config inherited
+        from environment)
+      parameters:
+      - description: Server ID
+        in: path
+        name: serverID
+        required: true
+        type: string
+      - description: Server update request
+        in: body
+        name: request
+        required: true
+        schema:
+          $ref: '#/definitions/pkg_server.UpdateServerRequest'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/github_com_pullbase_pullbase_server_pkg_models.Server'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/pkg_server.ErrorResponse'
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/pkg_server.ErrorResponse'
+        "403":
+          description: Forbidden
+          schema:
+            $ref: '#/definitions/pkg_server.ErrorResponse'
+        "404":
+          description: Not Found
+          schema:
+            $ref: '#/definitions/pkg_server.ErrorResponse'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/pkg_server.ErrorResponse'
+      security:
+      - BearerAuth: []
+      summary: Update server
+      tags:
+      - Servers
+  /servers/{serverID}/auto-reconcile:
+    post:
+      consumes:
+      - application/json
+      description: Toggles the auto-reconciliation setting for a server
+      parameters:
+      - description: Server ID
+        in: path
+        name: serverID
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            additionalProperties: true
+            type: object
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/pkg_server.ErrorResponse'
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/pkg_server.ErrorResponse'
+        "403":
+          description: Forbidden
+          schema:
+            $ref: '#/definitions/pkg_server.ErrorResponse'
+        "404":
+          description: Not Found
+          schema:
+            $ref: '#/definitions/pkg_server.ErrorResponse'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/pkg_server.ErrorResponse'
+      security:
+      - BearerAuth: []
+      summary: Toggle auto-reconcile
+      tags:
+      - Servers
+  /servers/{serverID}/drift:
+    get:
+      consumes:
+      - application/json
+      description: Retrieves detailed drift information for a server including packages,
+        services, and files
+      parameters:
+      - description: Server ID
+        in: path
+        name: serverID
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/pkg_server.DriftDetailsResponse'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/pkg_server.ErrorResponse'
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/pkg_server.ErrorResponse'
+        "403":
+          description: Forbidden
+          schema:
+            $ref: '#/definitions/pkg_server.ErrorResponse'
+        "404":
+          description: Not Found
+          schema:
+            $ref: '#/definitions/pkg_server.ErrorResponse'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/pkg_server.ErrorResponse'
+      security:
+      - BearerAuth: []
+      summary: Get server drift details
+      tags:
+      - Servers
+  /servers/{serverID}/info:
+    get:
+      consumes:
+      - application/json
+      description: Returns repository configuration for a server. Used by agents for
+        initial setup.
+      parameters:
+      - description: Server ID
+        in: path
+        name: serverID
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/pkg_server.ServerInfoResponse'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/github_com_pullbase_pullbase_server_pkg_apierrors.Error'
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/github_com_pullbase_pullbase_server_pkg_apierrors.Error'
+        "403":
+          description: Forbidden
+          schema:
+            $ref: '#/definitions/github_com_pullbase_pullbase_server_pkg_apierrors.Error'
+        "404":
+          description: Not Found
+          schema:
+            $ref: '#/definitions/github_com_pullbase_pullbase_server_pkg_apierrors.Error'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/github_com_pullbase_pullbase_server_pkg_apierrors.Error'
+      security:
+      - BearerAuth: []
+      summary: Get server info (JWT)
+      tags:
+      - Agent
+  /servers/{serverID}/install-instructions:
+    get:
+      consumes:
+      - application/json
+      description: Returns installation instructions for deploying the agent on a
+        server
+      parameters:
+      - description: Server ID
+        in: path
+        name: serverID
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            additionalProperties: true
+            type: object
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/pkg_server.ErrorResponse'
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/pkg_server.ErrorResponse'
+        "403":
+          description: Forbidden
+          schema:
+            $ref: '#/definitions/pkg_server.ErrorResponse'
+        "404":
+          description: Not Found
+          schema:
+            $ref: '#/definitions/pkg_server.ErrorResponse'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/pkg_server.ErrorResponse'
+      security:
+      - BearerAuth: []
+      summary: Get install instructions
+      tags:
+      - Servers
+  /servers/{serverID}/install-script:
+    get:
+      description: Generates a bash script for installing the agent on a server
+      parameters:
+      - description: Server ID
+        in: path
+        name: serverID
+        required: true
+        type: string
+      - description: Agent token
+        in: query
+        name: token
+        required: true
+        type: string
+      - default: latest
+        description: Agent version
+        in: query
+        name: version
+        type: string
+      - description: CA certificate for TLS verification
+        in: query
+        name: ca_cert
+        type: string
+      produces:
+      - text/x-shellscript
+      responses:
+        "200":
+          description: Bash install script
+          schema:
+            type: string
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/pkg_server.ErrorResponse'
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/pkg_server.ErrorResponse'
+        "403":
+          description: Forbidden
+          schema:
+            $ref: '#/definitions/pkg_server.ErrorResponse'
+        "404":
+          description: Not Found
+          schema:
+            $ref: '#/definitions/pkg_server.ErrorResponse'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/pkg_server.ErrorResponse'
+      security:
+      - BearerAuth: []
+      summary: Get install script
+      tags:
+      - Servers
+  /servers/{serverID}/status:
+    post:
+      consumes:
+      - application/json
+      description: Receives status updates from agents including drift detection and
+        errors
+      parameters:
+      - description: Server ID
+        in: path
+        name: serverID
+        required: true
+        type: string
+      - description: Status update payload
+        in: body
+        name: request
+        required: true
+        schema:
+          $ref: '#/definitions/pkg_server.AgentStatusPayload'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/github_com_pullbase_pullbase_server_pkg_apierrors.Error'
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/github_com_pullbase_pullbase_server_pkg_apierrors.Error'
+        "403":
+          description: Forbidden
+          schema:
+            $ref: '#/definitions/github_com_pullbase_pullbase_server_pkg_apierrors.Error'
+        "404":
+          description: Not Found
+          schema:
+            $ref: '#/definitions/github_com_pullbase_pullbase_server_pkg_apierrors.Error'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/github_com_pullbase_pullbase_server_pkg_apierrors.Error'
+      security:
+      - BearerAuth: []
+      summary: Update agent status (JWT)
+      tags:
+      - Agent
+  /servers/{serverID}/status-history:
+    get:
+      consumes:
+      - application/json
+      description: Retrieves paginated history of agent status updates for a server
+      parameters:
+      - description: Server ID
+        in: path
+        name: serverID
+        required: true
+        type: string
+      - default: 20
+        description: Number of entries per page (1-100)
+        in: query
+        name: limit
+        type: integer
+      - default: 1
+        description: Page number
+        in: query
+        name: page
+        type: integer
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            additionalProperties: true
+            type: object
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/pkg_server.ErrorResponse'
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/pkg_server.ErrorResponse'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/pkg_server.ErrorResponse'
+      security:
+      - BearerAuth: []
+      summary: Get server status history
+      tags:
+      - Servers
+  /servers/{serverID}/tokens:
+    get:
+      consumes:
+      - application/json
+      description: Retrieves all active agent tokens for a server
+      parameters:
+      - description: Server ID
+        in: path
+        name: serverID
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            items:
+              $ref: '#/definitions/github_com_pullbase_pullbase_server_pkg_models.AgentToken'
+            type: array
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/pkg_server.ErrorResponse'
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/pkg_server.ErrorResponse'
+        "403":
+          description: Forbidden
+          schema:
+            $ref: '#/definitions/pkg_server.ErrorResponse'
+        "404":
+          description: Not Found
+          schema:
+            $ref: '#/definitions/pkg_server.ErrorResponse'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/pkg_server.ErrorResponse'
+      security:
+      - BearerAuth: []
+      summary: List server tokens
+      tags:
+      - Tokens
+    post:
+      consumes:
+      - application/json
+      description: Creates a new agent token for a server. The token is only returned
+        once.
+      parameters:
+      - description: Server ID
+        in: path
+        name: serverID
+        required: true
+        type: string
+      - description: Token creation request
+        in: body
+        name: request
+        required: true
+        schema:
+          $ref: '#/definitions/pkg_server.CreateServerTokenRequest'
+      produces:
+      - application/json
+      responses:
+        "201":
+          description: Created
+          schema:
+            $ref: '#/definitions/pkg_server.CreateServerTokenResponse'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/pkg_server.ErrorResponse'
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/pkg_server.ErrorResponse'
+        "403":
+          description: Forbidden
+          schema:
+            $ref: '#/definitions/pkg_server.ErrorResponse'
+        "404":
+          description: Not Found
+          schema:
+            $ref: '#/definitions/pkg_server.ErrorResponse'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/pkg_server.ErrorResponse'
+      security:
+      - BearerAuth: []
+      summary: Create server token
+      tags:
+      - Tokens
+  /servers/{serverID}/tokens/{tokenID}:
+    delete:
+      consumes:
+      - application/json
+      description: Deactivates an agent token, preventing further authentication
+      parameters:
+      - description: Server ID
+        in: path
+        name: serverID
+        required: true
+        type: string
+      - description: Token ID
+        in: path
+        name: tokenID
+        required: true
+        type: integer
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/pkg_server.ErrorResponse'
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/pkg_server.ErrorResponse'
+        "403":
+          description: Forbidden
+          schema:
+            $ref: '#/definitions/pkg_server.ErrorResponse'
+        "404":
+          description: Not Found
+          schema:
+            $ref: '#/definitions/pkg_server.ErrorResponse'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/pkg_server.ErrorResponse'
+      security:
+      - BearerAuth: []
+      summary: Deactivate token
+      tags:
+      - Tokens
+  /tokens/expiring:
+    get:
+      consumes:
+      - application/json
+      description: Returns tokens that will expire within the specified number of
+        days
+      parameters:
+      - default: 7
+        description: Days until expiration (1-365)
+        in: query
+        name: days
+        type: integer
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            additionalProperties: true
+            type: object
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/pkg_server.ErrorResponse'
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/pkg_server.ErrorResponse'
+        "403":
+          description: Forbidden
+          schema:
+            $ref: '#/definitions/pkg_server.ErrorResponse'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/pkg_server.ErrorResponse'
+      security:
+      - BearerAuth: []
+      summary: Get expiring tokens
+      tags:
+      - Tokens
+  /users:
+    get:
+      description: List all users. Admin only.
+      parameters:
+      - default: 100
+        description: Limit
+        in: query
+        name: limit
+        type: integer
+      - default: 0
+        description: Offset
+        in: query
+        name: offset
+        type: integer
+      - description: Filter by role
+        in: query
+        name: role
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/pkg_server.ListUsersResponse'
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/pkg_server.ErrorResponse'
+        "403":
+          description: Forbidden
+          schema:
+            $ref: '#/definitions/pkg_server.ErrorResponse'
+      security:
+      - BearerAuth: []
+      summary: List users
+      tags:
+      - Users
+    post:
+      consumes:
+      - application/json
+      description: Create a new user. Admin only.
+      parameters:
+      - description: User details
+        in: body
+        name: request
+        required: true
+        schema:
+          $ref: '#/definitions/pkg_server.CreateUserRequest'
+      produces:
+      - application/json
+      responses:
+        "201":
+          description: Created
+          schema:
+            $ref: '#/definitions/pkg_server.CreateUserResponse'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/pkg_server.ErrorResponse'
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/pkg_server.ErrorResponse'
+        "403":
+          description: Forbidden
+          schema:
+            $ref: '#/definitions/pkg_server.ErrorResponse'
+        "409":
+          description: Conflict
+          schema:
+            $ref: '#/definitions/pkg_server.ErrorResponse'
+      security:
+      - BearerAuth: []
+      summary: Create user
+      tags:
+      - Users
+  /users/{userID}:
+    delete:
+      consumes:
+      - application/json
+      description: Delete a user. Admin only. Requires username confirmation.
+      parameters:
+      - description: User ID
+        in: path
+        name: userID
+        required: true
+        type: integer
+      - description: Confirmation
+        in: body
+        name: request
+        required: true
+        schema:
+          $ref: '#/definitions/pkg_server.DeleteUserRequest'
+      produces:
+      - application/json
+      responses:
+        "204":
+          description: User deleted
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/pkg_server.ErrorResponse'
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/pkg_server.ErrorResponse'
+        "403":
+          description: Forbidden
+          schema:
+            $ref: '#/definitions/pkg_server.ErrorResponse'
+        "404":
+          description: Not Found
+          schema:
+            $ref: '#/definitions/pkg_server.ErrorResponse'
+      security:
+      - BearerAuth: []
+      summary: Delete user
+      tags:
+      - Users
+  /validate-config:
+    post:
+      consumes:
+      - text/yaml
+      description: Validates a config.yaml file for syntax errors and invalid values
+      parameters:
+      - description: YAML configuration file content
+        in: body
+        name: config
+        required: true
+        schema:
+          type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/pkg_server.ValidateConfigResponse'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/pkg_server.ValidateConfigResponse'
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/pkg_server.ErrorResponse'
+        "405":
+          description: Method Not Allowed
+          schema:
+            $ref: '#/definitions/pkg_server.ErrorResponse'
+      security:
+      - BearerAuth: []
+      summary: Validate config
+      tags:
+      - Config
+securityDefinitions:
+  AgentAuth:
+    description: 'Agent token generated when creating a server. Format: "Bearer {token}"'
+    in: header
+    name: Authorization
+    type: apiKey
+  BearerAuth:
+    description: 'JWT token obtained from /api/v1/auth/login. Format: "Bearer {token}"'
+    in: header
+    name: Authorization
+    type: apiKey
+swagger: "2.0"

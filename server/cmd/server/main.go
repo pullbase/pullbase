@@ -1,0 +1,457 @@
+package main
+
+import (
+	"context"
+	"crypto/ecdsa"
+	"crypto/elliptic"
+	"crypto/rand"
+	"crypto/tls"
+	"crypto/x509"
+	"crypto/x509/pkix"
+	"encoding/base64"
+	"encoding/hex"
+	"encoding/pem"
+	"errors"
+	"flag"
+	"fmt"
+	"log/slog"
+	"math/big"
+	"net"
+	"net/http"
+	"os"
+	"os/signal"
+	"path/filepath"
+	"strings"
+	"syscall"
+	"time"
+
+	"github.com/pullbase/pullbase/server/pkg/auth"
+	appconfig "github.com/pullbase/pullbase/server/pkg/config"
+	"github.com/pullbase/pullbase/server/pkg/csrf"
+	"github.com/pullbase/pullbase/server/pkg/database"
+	"github.com/pullbase/pullbase/server/pkg/githubapp"
+	"github.com/pullbase/pullbase/server/pkg/gitmonitor"
+	"github.com/pullbase/pullbase/server/pkg/notifications"
+	"github.com/pullbase/pullbase/server/pkg/rollback"
+	"github.com/pullbase/pullbase/server/pkg/server"
+)
+
+func generateBootstrapSecret() (string, error) {
+	buf := make([]byte, 32)
+	if _, err := rand.Read(buf); err != nil {
+		return "", fmt.Errorf("failed to generate bootstrap secret: %w", err)
+	}
+	return base64.RawURLEncoding.EncodeToString(buf), nil
+}
+
+func writeBootstrapSecretFile(path, secret string) (err error) {
+	if path == "" {
+		return errors.New("bootstrap secret file path is empty")
+	}
+	dir := filepath.Dir(path)
+	if dir != "." {
+		if err := os.MkdirAll(dir, 0o700); err != nil {
+			return fmt.Errorf("failed to create bootstrap secret directory %q: %w", dir, err)
+		}
+	}
+	file, err := os.OpenFile(path, os.O_CREATE|os.O_WRONLY|os.O_TRUNC, 0o600)
+	if err != nil {
+		return fmt.Errorf("failed to open bootstrap secret file %q: %w", path, err)
+	}
+	defer func() {
+		if cerr := file.Close(); cerr != nil {
+			if err == nil {
+				err = fmt.Errorf("failed to close bootstrap secret file %q: %w", path, cerr)
+			} else {
+				slog.Warn("failed to close bootstrap secret file", "path", path, "error", cerr)
+			}
+		}
+	}()
+	if _, err = file.WriteString(secret + "\n"); err != nil {
+		return fmt.Errorf("failed to write bootstrap secret file %q: %w", path, err)
+	}
+	if err = file.Sync(); err != nil {
+		return fmt.Errorf("failed to flush bootstrap secret file %q: %w", path, err)
+	}
+	if err = file.Chmod(0o600); err != nil {
+		return fmt.Errorf("failed to set permissions on bootstrap secret file %q: %w", path, err)
+	}
+	return nil
+}
+
+func generateSelfSignedCerts(certPath, keyPath string) error {
+	certDir := filepath.Dir(certPath)
+	if certDir != "." {
+		if err := os.MkdirAll(certDir, 0o755); err != nil {
+			return fmt.Errorf("failed to create certificate directory %q: %w", certDir, err)
+		}
+	}
+
+	keyDir := filepath.Dir(keyPath)
+	if keyDir != "." && keyDir != certDir {
+		if err := os.MkdirAll(keyDir, 0o755); err != nil {
+			return fmt.Errorf("failed to create key directory %q: %w", keyDir, err)
+		}
+	}
+
+	privateKey, err := generatePrivateKey()
+	if err != nil {
+		return fmt.Errorf("failed to generate private key: %w", err)
+	}
+
+	certPEM, keyPEM, err := generateCertificate(privateKey)
+	if err != nil {
+		return fmt.Errorf("failed to generate certificate: %w", err)
+	}
+
+	if err := os.WriteFile(certPath, certPEM, 0o644); err != nil {
+		return fmt.Errorf("failed to write certificate: %w", err)
+	}
+
+	if err := os.WriteFile(keyPath, keyPEM, 0o600); err != nil {
+		return fmt.Errorf("failed to write key: %w", err)
+	}
+
+	return nil
+}
+
+func generatePrivateKey() (any, error) {
+	return ecdsa.GenerateKey(elliptic.P256(), rand.Reader)
+}
+
+func generateCertificate(privateKey any) ([]byte, []byte, error) {
+	ecKey, ok := privateKey.(*ecdsa.PrivateKey)
+	if !ok {
+		return nil, nil, fmt.Errorf("expected ECDSA private key")
+	}
+
+	serialNumber, err := rand.Int(rand.Reader, new(big.Int).Lsh(big.NewInt(1), 128))
+	if err != nil {
+		return nil, nil, fmt.Errorf("failed to generate serial number: %w", err)
+	}
+
+	template := x509.Certificate{
+		SerialNumber: serialNumber,
+		Subject: pkix.Name{
+			Organization: []string{"Pullbase Development"},
+			CommonName:   "localhost",
+		},
+		NotBefore:             time.Now(),
+		NotAfter:              time.Now().Add(365 * 24 * time.Hour),
+		KeyUsage:              x509.KeyUsageKeyEncipherment | x509.KeyUsageDigitalSignature,
+		ExtKeyUsage:           []x509.ExtKeyUsage{x509.ExtKeyUsageServerAuth},
+		BasicConstraintsValid: true,
+		DNSNames:              []string{"localhost"},
+		IPAddresses:           []net.IP{net.ParseIP("127.0.0.1"), net.ParseIP("::1")},
+	}
+
+	certDER, err := x509.CreateCertificate(rand.Reader, &template, &template, &ecKey.PublicKey, ecKey)
+	if err != nil {
+		return nil, nil, fmt.Errorf("failed to create certificate: %w", err)
+	}
+
+	certPEM := pem.EncodeToMemory(&pem.Block{Type: "CERTIFICATE", Bytes: certDER})
+
+	keyDER, err := x509.MarshalECPrivateKey(ecKey)
+	if err != nil {
+		return nil, nil, fmt.Errorf("failed to marshal private key: %w", err)
+	}
+	keyPEM := pem.EncodeToMemory(&pem.Block{Type: "EC PRIVATE KEY", Bytes: keyDER})
+
+	return certPEM, keyPEM, nil
+}
+
+func readBootstrapSecretFile(path string) (string, error) {
+	info, err := os.Stat(path)
+	if err != nil {
+		return "", err
+	}
+	if info.IsDir() {
+		return "", fmt.Errorf("bootstrap secret file %q is a directory", path)
+	}
+	if perm := info.Mode().Perm(); perm&0o077 != 0 {
+		return "", fmt.Errorf("bootstrap secret file %q must not be group- or world-accessible (current permissions: %o)", path, perm)
+	}
+	data, err := os.ReadFile(path)
+	if err != nil {
+		return "", fmt.Errorf("failed to read bootstrap secret file %q: %w", path, err)
+	}
+	return strings.TrimSpace(string(data)), nil
+}
+
+func main() {
+	var generateDevCerts bool
+	flag.BoolVar(&generateDevCerts, "generate-dev-certs", false, "Generate self-signed development certificates and exit")
+	flag.Parse()
+
+	if generateDevCerts {
+		if err := generateSelfSignedCerts("certs/server.crt", "certs/server.key"); err != nil {
+			slog.Error("failed to generate development certificates", "error", err)
+			os.Exit(1)
+		}
+		slog.Info("development certificates generated successfully",
+			"certificate", "certs/server.crt",
+			"key", "certs/server.key",
+			"valid_for", "localhost, 127.0.0.1",
+			"expires", "1 year from now")
+		return
+	}
+
+	cfg, err := appconfig.LoadConfig("config/config.json")
+	if err != nil {
+		slog.Error("failed to load configuration", "error", err)
+		os.Exit(1)
+	}
+
+	dbCtx, dbCancel := context.WithTimeout(context.Background(), 10*time.Second)
+	defer dbCancel()
+
+	dbDialect, err := database.ParseDialect(cfg.Database.Dialect)
+	if err != nil {
+		slog.Error("invalid database dialect", "error", err)
+		os.Exit(1)
+	}
+
+	dbConfig := database.Config{
+		Dialect:      dbDialect,
+		Host:         cfg.Database.Host,
+		Port:         cfg.Database.Port,
+		User:         cfg.Database.User,
+		Password:     cfg.Database.Password,
+		DatabaseName: cfg.Database.DBName,
+		SSLMode:      cfg.Database.SSLMode,
+		Path:         cfg.Database.Path,
+	}
+	db, dialect, err := database.New(dbConfig)
+	if err != nil {
+		slog.Error("failed to connect to database", "error", err)
+		os.Exit(1)
+	}
+	defer db.Close()
+
+	if err := database.InitSchema(dbCtx, db, dialect, cfg.Migrations.Path); err != nil {
+		slog.Error("failed to initialize database schema", "error", err)
+		os.Exit(1)
+	}
+	slog.Info("database schema initialized", "dialect", dialect)
+
+	repo := database.NewRepository(db, dialect)
+	envRepo := database.NewEnvironmentRepository(db, dialect)
+
+	authService, err := auth.NewService(cfg.JWT.Secret, cfg.JWT.ExpiryHours)
+	if err != nil {
+		slog.Error("failed to initialize auth service", "error", err)
+		os.Exit(1)
+	}
+
+	var environmentMonitor *gitmonitor.EnvironmentMonitor
+	var rollbackGitMonitor rollback.GitMonitor
+	var installationTokenProvider gitmonitor.InstallationTokenProvider
+	if cfg.Git.Enabled {
+		encryptionKeyHex := os.Getenv("PULLBASE_ENCRYPTION_KEY")
+		if encryptionKeyHex == "" {
+			slog.Error("PULLBASE_ENCRYPTION_KEY environment variable is required")
+			os.Exit(1)
+		}
+
+		encryptionKey, err := hex.DecodeString(encryptionKeyHex)
+		if err != nil {
+			slog.Error("failed to decode encryption key", "error", err)
+			os.Exit(1)
+		}
+
+		privateKeyPEM, err := cfg.GitHubApp.LoadPrivateKey()
+		if err != nil {
+			slog.Error("failed to load GitHub App private key", "error", err)
+			os.Exit(1)
+		}
+
+		githubClient, err := githubapp.NewClient(githubapp.Config{
+			AppID:         cfg.GitHubApp.AppID,
+			PrivateKeyPEM: privateKeyPEM,
+			APIBaseURL:    cfg.GitHubApp.APIBaseURL,
+		})
+		if err != nil {
+			slog.Error("failed to initialise GitHub App client", "error", err)
+			os.Exit(1)
+		}
+		installationTokenProvider = githubClient
+
+		logger := slog.New(slog.NewTextHandler(os.Stdout, nil))
+		webhookRouter := gitmonitor.NewWebhookRouter(logger, nil)
+		webhookManager := gitmonitor.NewWebhookManager(webhookRouter, logger, envRepo)
+
+		environmentMonitor = gitmonitor.NewEnvironmentMonitor(webhookManager, logger, encryptionKey, envRepo, repo, installationTokenProvider)
+		environmentMonitor.RegisterProvider(gitmonitor.ProviderGitHub, gitmonitor.NewGitHubProvider())
+
+		webhookRouter.SetMonitor(environmentMonitor)
+		webhookRouter.RegisterHandler(gitmonitor.ProviderGitHub, environmentMonitor)
+
+		if err := environmentMonitor.LoadEnvironmentsFromDatabase(dbCtx); err != nil {
+			slog.Warn("failed to load environments from database", "error", err)
+		}
+
+		go environmentMonitor.StartRetryWorker(dbCtx)
+		slog.Info("environment monitor started successfully")
+
+		rollbackGitMonitor = gitmonitor.NewRollbackGitMonitorAdapter(environmentMonitor)
+	} else {
+		slog.Info("git monitor is disabled in configuration")
+	}
+
+	logger := slog.New(slog.NewTextHandler(os.Stdout, nil))
+	rollbackService := rollback.NewService(repo, rollbackGitMonitor, logger)
+	rollbackHandlers := server.NewRollbackHandlers(rollbackService)
+
+	if environmentMonitor != nil {
+		environmentMonitor.SetRollbackService(rollbackService)
+	}
+
+	var webhookHandlers *server.WebhookHandlers
+	if environmentMonitor != nil {
+		webhookHandlers = server.NewWebhookHandlers(environmentMonitor, logger)
+	}
+
+	api := &server.API{
+		Repo:             repo,
+		Auth:             authService,
+		CSRF:             csrf.NewManager(),
+		RollbackHandlers: rollbackHandlers,
+		WebhookHandlers:  webhookHandlers,
+		TokenProvider:    installationTokenProvider,
+		Notifications:    notifications.NewService(),
+		Logger:           logger,
+	}
+
+	adminCheckCtx, adminCheckCancel := context.WithTimeout(context.Background(), 5*time.Second)
+	defer adminCheckCancel()
+
+	hasAdmin, err := repo.HasActiveAdmin(adminCheckCtx)
+	if err != nil {
+		slog.Error("failed to verify existing admin users", "error", err)
+		os.Exit(1)
+	}
+
+	if !hasAdmin {
+		bootstrapSecret := strings.TrimSpace(cfg.Bootstrap.Secret)
+		secretLoadedFromFile := false
+
+		if bootstrapSecret == "" && cfg.Bootstrap.SecretFile != "" {
+			secret, err := readBootstrapSecretFile(cfg.Bootstrap.SecretFile)
+			if err != nil {
+				if !errors.Is(err, os.ErrNotExist) {
+					slog.Error("failed to load bootstrap secret file", "path", cfg.Bootstrap.SecretFile, "error", err)
+					os.Exit(1)
+				}
+			} else if secret != "" {
+				bootstrapSecret = secret
+				secretLoadedFromFile = true
+			}
+		}
+
+		if bootstrapSecret == "" {
+			secret, err := generateBootstrapSecret()
+			if err != nil {
+				slog.Error("failed to generate bootstrap secret", "error", err)
+				os.Exit(1)
+			}
+			bootstrapSecret = secret
+
+			if cfg.Bootstrap.SecretFile == "" {
+				slog.Error("generated bootstrap secret but no PULLBASE_BOOTSTRAP_SECRET_FILE path is configured; set PULLBASE_BOOTSTRAP_SECRET or provide a writable secret file path")
+				os.Exit(1)
+			}
+
+			if err := writeBootstrapSecretFile(cfg.Bootstrap.SecretFile, bootstrapSecret); err != nil {
+				slog.Error("failed to persist bootstrap secret; ensure the path is writable or supply PULLBASE_BOOTSTRAP_SECRET", "path", cfg.Bootstrap.SecretFile, "error", err)
+				os.Exit(1)
+			}
+			slog.Info("admin bootstrap secret written", "path", cfg.Bootstrap.SecretFile, "permissions", "600")
+		} else if secretLoadedFromFile {
+			slog.Info("admin bootstrap secret loaded from file", "path", cfg.Bootstrap.SecretFile)
+		} else {
+			slog.Info("admin bootstrap secret provided via configuration/environment")
+		}
+
+		api.EnableBootstrap(bootstrapSecret, cfg.Bootstrap.SecretFile)
+		bootstrapSecret = ""
+	} else {
+		api.DisableBootstrap()
+		if cfg.Bootstrap.SecretFile != "" {
+			if err := os.Remove(cfg.Bootstrap.SecretFile); err != nil && !os.IsNotExist(err) {
+				slog.Warn("failed to remove bootstrap secret file", "path", cfg.Bootstrap.SecretFile, "error", err)
+			} else if err == nil {
+				slog.Info("removed leftover bootstrap secret file because an admin already exists", "path", cfg.Bootstrap.SecretFile)
+			}
+		}
+		slog.Info("admin user detected; bootstrap endpoint disabled")
+	}
+
+	if webhookHandlers != nil {
+		webhookHandlers.SetAuditRecorder(api.RecordAuditLog)
+	}
+
+	corsConfig := server.CORSConfig{
+		AllowedOrigins: cfg.CORS.AllowedOrigins,
+		IsDevelopment:  cfg.Environment == "development",
+	}
+
+	r := server.SetupRoutes(api, authService, corsConfig)
+
+	serverAddr := fmt.Sprintf("%s:%d", cfg.Server.Host, cfg.Server.Port)
+
+	httpServer := &http.Server{
+		Addr:    serverAddr,
+		Handler: r,
+	}
+
+	stopChan := make(chan os.Signal, 1)
+	signal.Notify(stopChan, syscall.SIGINT, syscall.SIGTERM)
+
+	if !cfg.TLS.Enabled {
+		go func() {
+			slog.Info("HTTP server starting", "address", serverAddr, "tls", false)
+			if err := httpServer.ListenAndServe(); err != nil && err != http.ErrServerClosed {
+				slog.Error("could not listen", "address", serverAddr, "error", err)
+				os.Exit(1)
+			}
+		}()
+	} else {
+		certFile := cfg.TLS.CertPath
+		keyFile := cfg.TLS.KeyPath
+
+		if _, err := os.Stat(certFile); os.IsNotExist(err) {
+			slog.Error("TLS certificate file not found; run with --generate-dev-certs to create development certificates, or set PULLBASE_TLS_ENABLED=false to disable TLS", "path", certFile)
+			os.Exit(1)
+		}
+		if _, err := os.Stat(keyFile); os.IsNotExist(err) {
+			slog.Error("TLS key file not found; run with --generate-dev-certs to create development certificates, or set PULLBASE_TLS_ENABLED=false to disable TLS", "path", keyFile)
+			os.Exit(1)
+		}
+
+		httpServer.TLSConfig = &tls.Config{
+			ClientAuth: tls.NoClientCert,
+			MinVersion: tls.VersionTLS12,
+		}
+
+		go func() {
+			slog.Info("HTTPS server starting", "address", serverAddr, "tls", true)
+			if err := httpServer.ListenAndServeTLS(certFile, keyFile); err != nil && err != http.ErrServerClosed {
+				slog.Error("could not listen", "address", serverAddr, "error", err)
+				os.Exit(1)
+			}
+		}()
+	}
+
+	<-stopChan
+	slog.Info("shutting down server...")
+
+	shutdownCtx, shutdownCancel := context.WithTimeout(context.Background(), 5*time.Second)
+	defer shutdownCancel()
+
+	if err := httpServer.Shutdown(shutdownCtx); err != nil {
+		slog.Warn("server shutdown failed", "error", err)
+	}
+
+	slog.Info("server gracefully stopped")
+}

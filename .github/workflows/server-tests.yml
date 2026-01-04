@@ -1,0 +1,59 @@
+name: Server Tests
+
+on:
+  push:
+    branches:
+      - main
+    paths:
+      - 'server/**'
+      - '.github/workflows/server-tests.yml'
+  pull_request:
+    branches:
+      - main
+    paths:
+      - 'server/**'
+      - '.github/workflows/server-tests.yml'
+
+jobs:
+  unit-tests:
+    runs-on: buildjet-4vcpu-ubuntu-2204
+    timeout-minutes: 10
+
+    steps:
+      - name: Check out code
+        uses: actions/checkout@v4
+
+      - name: Set up Go
+        uses: actions/setup-go@v5
+        with:
+          go-version: '1.24'
+
+      - name: Download Go modules
+        working-directory: ./server
+        run: go mod download
+
+      - name: Run unit tests
+        working-directory: ./server
+        run: go test -v -parallel 4 -race -tags=test ./...
+
+  integration-tests:
+    runs-on: buildjet-4vcpu-ubuntu-2204
+    needs: unit-tests
+    timeout-minutes: 30
+
+    steps:
+      - name: Check out code
+        uses: actions/checkout@v4
+
+      - name: Set up Go
+        uses: actions/setup-go@v5
+        with:
+          go-version: '1.24'
+
+      - name: Download Go modules
+        working-directory: ./server
+        run: go mod download
+
+      - name: Run integration tests
+        working-directory: ./server
+        run: go test -v -parallel 2 -race -tags=integration,test ./... 

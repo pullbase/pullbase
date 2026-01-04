@@ -1,0 +1,54 @@
+# Binaries for programs and plugins
+*.exe
+*.exe~
+*.dll
+*.so
+*.dylib
+*.key
+*.pem
+*.crt
+*.csr
+
+# Test binary, built with `go test -c`
+*.test
+
+# Output of the go coverage tool, specifically when used with LiteIDE
+*.out
+
+# Dependency directories
+/vendor
+/bin
+/build
+/dist
+
+# Go workspace file
+go.work
+go.work.sum
+
+# env file
+.env
+!.env.example
+
+# Frontend build artifacts
+web/node_modules
+web/dist
+public/pullbase-website/node_modules
+public/pullbase-website/.astro
+
+# Embedded UI files (generated during build)
+server/pkg/server/ui/
+
+# Secrets directory
+server/secrets/*
+!server/secrets/.gitkeep
+
+# IDE
+.idea/
+.vscode/
+*.swp
+*.swo
+.DS_Store
+
+# Docker compose for local dev
+docker-compose.yml
+docker-compose.override.yml

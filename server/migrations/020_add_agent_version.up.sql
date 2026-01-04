@@ -1,0 +1,1 @@
+ALTER TABLE agent_status ADD COLUMN IF NOT EXISTS agent_version VARCHAR(50);

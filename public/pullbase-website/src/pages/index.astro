@@ -1,0 +1,878 @@
+---
+import Layout from '../layouts/Layout.astro';
+import '../styles/global.css';
+import { Image } from 'astro:assets';
+import logoNavWhite from '../assets/logo-nav-white.svg';
+import dashboardImg from '../assets/pullbase-dashboard.jpeg';
+import serverDetailImg from '../assets/server-detail.jpeg';
+import environmentsImg from '../assets/environments.jpeg';
+---
+
+<Layout
+  title="Pull Base - GitOps-Driven Server Configuration"
+  description="Store your server setup in Git and Pull Base keeps every box in sync. Plain YAML, automatic drift fix, and fast rollbacks."
+>
+  <div class="fixed inset-0 z-0 pointer-events-none">
+    <div class="absolute inset-0 bg-technical-grid opacity-40 technical-grid h-full w-full"></div>
+  </div>
+
+  <header class="fixed w-full top-0 z-50 bg-studio-black/80 backdrop-blur-md border-b border-studio-border">
+    <div class="max-w-[1400px] mx-auto px-6 h-16 flex items-center justify-between">
+      <a href="#top" class="flex items-center gap-3 group cursor-pointer">
+        <Image src={logoNavWhite} alt="Pull Base" class="h-8 w-auto drop-shadow-[0_0_30px_rgba(255,255,255,0.12)]" loading="eager" />
+      </a>
+
+      <nav class="hidden md:flex gap-8">
+        <a href="#features" class="text-sm font-body text-studio-muted hover:text-white transition-colors">Features</a>
+        <a href="#how-it-works" class="text-sm font-body text-studio-muted hover:text-white transition-colors">How It Works</a>
+        <a href="#comparison" class="text-sm font-body text-studio-muted hover:text-white transition-colors">Compare</a>
+      </nav>
+
+      <div class="flex items-center gap-4">
+        <a href="https://github.com/pullbase/pullbase" target="_blank" class="hidden sm:flex items-center gap-2 px-5 py-2 text-xs font-mono border border-studio-border hover:border-white transition-colors bg-studio-panel">
+          GITHUB
+        </a>
+        <a href="https://docs.pullbase.io/quickstart" class="hidden sm:flex items-center gap-2 px-5 py-2 text-xs font-mono border border-studio-border hover:border-white transition-colors bg-white text-black font-bold">
+          GET_STARTED
+        </a>
+      </div>
+    </div>
+  </header>
+
+  <main id="top" class="relative z-10 pt-32 pb-0">
+    <section class="max-w-[1400px] mx-auto px-6 mb-32 pt-10">
+      <div class="flex flex-col items-center text-center max-w-4xl mx-auto">
+        <div class="reveal">
+          <div class="inline-block mb-6 px-3 py-1 border border-green-500/30 text-green-400 text-xs font-mono tracking-wider bg-green-500/10">
+            SYSTEM_STATUS: OPERATIONAL
+          </div>
+          <h1 class="text-5xl md:text-7xl font-light tracking-tighter leading-[0.95] mb-6 text-white">
+            GITOPS FOR<br />
+            <span class="text-studio-muted">LINUX SERVERS</span>
+          </h1>
+          <p class="text-xl md:text-2xl font-body text-studio-muted max-w-2xl mx-auto leading-relaxed">
+            Manage packages, services, and configuration files using Git as your source of truth. No playbooks, just state.
+          </p>
+          
+          <div class="flex flex-wrap gap-4 mt-10 justify-center items-center">
+            <a href="https://docs.pullbase.io/quickstart" class="px-8 py-4 bg-white text-black font-mono text-sm font-bold hover:bg-studio-accent hover:text-white transition-colors">
+              [ GET_STARTED ]
+            </a>
+            <a href="https://github.com/pullbase/pullbase" target="_blank" class="px-8 py-4 border border-studio-border text-white font-mono text-sm hover:border-white transition-colors">
+              VIEW_ON_GITHUB
+            </a>
+          </div>
+          <p class="text-xs text-studio-muted font-body mt-4">Open Source. Apache 2.0.</p>
+
+          <div class="mt-12 grid grid-cols-1 md:grid-cols-2 gap-x-12 gap-y-4 text-left text-sm text-studio-muted font-body max-w-2xl mx-auto">
+            <div class="flex items-start gap-2">
+              <span class="text-studio-accent font-mono">01</span>
+              <span>Stop SSH drift: Pull Base watches Git and fixes servers automatically.</span>
+            </div>
+            <div class="flex items-start gap-2">
+              <span class="text-studio-accent font-mono">02</span>
+              <span>Plain YAML. Point at your repo and go.</span>
+            </div>
+            <div class="flex items-start gap-2">
+              <span class="text-studio-accent font-mono">03</span>
+              <span>apt/yum/apk + systemd/supervisor supported out of the box.</span>
+            </div>
+            <div class="flex items-start gap-2">
+              <span class="text-studio-accent font-mono">04</span>
+              <span>GitHub App webhooks keep state in sync (private repos supported).</span>
+            </div>
+          </div>
+
+          <div class="mt-16 w-full max-w-3xl mx-auto text-left reveal" style="--delay:0.2s">
+            <div class="rounded-lg border border-studio-border bg-studio-black overflow-hidden shadow-2xl relative group">
+              <div class="absolute inset-0 bg-studio-accent/5 opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none"></div>
+              <div class="flex items-center justify-between px-4 py-3 border-b border-studio-border bg-studio-panel/50">
+                <div class="flex gap-2">
+                  <div class="w-3 h-3 rounded-full bg-red-500/20 border border-red-500/50"></div>
+                  <div class="w-3 h-3 rounded-full bg-yellow-500/20 border border-yellow-500/50"></div>
+                  <div class="w-3 h-3 rounded-full bg-green-500/20 border border-green-500/50"></div>
+                </div>
+                <div class="font-mono text-xs text-studio-muted">config.yaml</div>
+                <div class="w-12"></div>
+              </div>
+              <div class="p-6 overflow-x-auto bg-studio-black/80 backdrop-blur-sm">
+                <pre class="font-mono text-sm leading-relaxed text-gray-300"><code><span class="token key">packages:</span>
+  - <span class="token key">name:</span> <span class="token string">"nginx"</span>
+    <span class="token key">state:</span> <span class="token string">"present"</span>
+  - <span class="token key">name:</span> <span class="token string">"postgresql"</span>
+    <span class="token key">state:</span> <span class="token string">"latest"</span>
+
+<span class="token key">services:</span>
+  - <span class="token key">name:</span> <span class="token string">"nginx"</span>
+    <span class="token key">state:</span> <span class="token string">"running"</span>
+    <span class="token key">enabled:</span> <span class="token number">true</span>
+
+<span class="token key">files:</span>
+  - <span class="token key">path:</span> <span class="token string">"/etc/nginx/nginx.conf"</span>
+    <span class="token key">source:</span> <span class="token string">"git:configs/nginx.conf"</span></code></pre>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <div id="ticker" class="border-y border-studio-border bg-studio-panel overflow-hidden py-3 mb-32 reveal">
+      <div class="flex w-full overflow-hidden">
+        <div class="flex whitespace-nowrap gap-12 animate-marquee-ltr font-mono text-xs text-studio-muted uppercase tracking-widest px-6">
+          <span>// Git-Driven Configuration</span>
+          <span>// Real-time Drift Detection</span>
+          <span>// Auto Reconciliation</span>
+          <span>// Instant Rollback</span>
+          <span>// Multi-Platform Support</span>
+          <span>// Status History</span>
+          <span>// GitHub App + Private Repos</span>
+          <span>// Role-Based Access</span>
+        </div>
+        <div class="flex whitespace-nowrap gap-12 animate-marquee-ltr font-mono text-xs text-studio-muted uppercase tracking-widest px-6">
+          <span>// Git-Driven Configuration</span>
+          <span>// Real-time Drift Detection</span>
+          <span>// Auto Reconciliation</span>
+          <span>// Instant Rollback</span>
+          <span>// Multi-Platform Support</span>
+          <span>// Status History</span>
+        </div>
+        <div class="flex whitespace-nowrap gap-12 animate-marquee-ltr font-mono text-xs text-studio-muted uppercase tracking-widest px-6">
+          <span>// Git-Driven Configuration</span>
+          <span>// Real-time Drift Detection</span>
+          <span>// Auto Reconciliation</span>
+          <span>// Instant Rollback</span>
+          <span>// Multi-Platform Support</span>
+          <span>// Status History</span>
+        </div>
+      </div>
+    </div>
+
+    <section class="max-w-[1400px] mx-auto px-6 mb-32">
+      <div class="flex flex-col md:flex-row justify-between items-end mb-12 border-b border-studio-border pb-6 reveal">
+        <h2 class="text-4xl font-light">MISSION_PROFILE</h2>
+        <span class="font-mono text-xs text-studio-muted hidden md:block">IDX: 000 // TARGET_PERSONNEL</span>
+      </div>
+
+      <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+        <div class="tech-card p-6 reveal" style="--delay:0.05s">
+          <div class="corner-marker top-left"></div>
+          <div class="corner-marker top-right"></div>
+          <div class="corner-marker bottom-left"></div>
+          <div class="corner-marker bottom-right"></div>
+          <h3 class="font-mono text-sm text-studio-accent mb-3">> SYSADMINS</h3>
+          <p class="text-sm text-studio-muted font-body leading-relaxed">
+            Manage fleets of web servers or databases without SSH fatigue.
+          </p>
+        </div>
+
+        <div class="tech-card p-6 reveal" style="--delay:0.1s">
+          <div class="corner-marker top-left"></div>
+          <div class="corner-marker top-right"></div>
+          <div class="corner-marker bottom-left"></div>
+          <div class="corner-marker bottom-right"></div>
+          <h3 class="font-mono text-sm text-studio-accent mb-3">> DEVOPS_ENGINEERS</h3>
+          <p class="text-sm text-studio-muted font-body leading-relaxed">
+            Get GitOps benefits (history, rollbacks) without Kubernetes complexity.
+          </p>
+        </div>
+
+        <div class="tech-card p-6 reveal" style="--delay:0.15s">
+          <div class="corner-marker top-left"></div>
+          <div class="corner-marker top-right"></div>
+          <div class="corner-marker bottom-left"></div>
+          <div class="corner-marker bottom-right"></div>
+          <h3 class="font-mono text-sm text-studio-accent mb-3">> PLATFORM_TEAMS</h3>
+          <p class="text-sm text-studio-muted font-body leading-relaxed">
+            Standardize configuration across dev, staging, and prod environments.
+          </p>
+        </div>
+
+        <div class="tech-card p-6 reveal" style="--delay:0.2s">
+          <div class="corner-marker top-left"></div>
+          <div class="corner-marker top-right"></div>
+          <div class="corner-marker bottom-left"></div>
+          <div class="corner-marker bottom-right"></div>
+          <h3 class="font-mono text-sm text-studio-accent mb-3">> SMALL_TEAMS</h3>
+          <p class="text-sm text-studio-muted font-body leading-relaxed">
+            Automate infrastructure without needing dedicated tooling experts.
+          </p>
+        </div>
+      </div>
+    </section>
+
+    <section class="max-w-[1400px] mx-auto px-6 mb-32 space-y-12">
+      <div class="flex items-start justify-between gap-4 reveal">
+        <div>
+          <h2 class="text-3xl font-light text-white">See Pull Base in action</h2>
+          <p class="text-sm text-studio-muted font-body mt-2 max-w-2xl">Screens that mirror the story: fleet health, drift fixes, and environment guardrails.</p>
+        </div>
+        <span class="font-mono text-xs text-studio-muted">Live UI </span>
+      </div>
+
+      <div class="grid grid-cols-1 lg:grid-cols-2 gap-8 items-center">
+        <div class="space-y-3 reveal" style="--delay:0.05s">
+          <div class="inline-flex items-center gap-2 px-3 py-1 bg-studio-panel border border-studio-border font-mono text-xs text-white">Fleet-wide view</div>
+          <h3 class="text-2xl font-light text-white">Know what every server is doing in one glance</h3>
+          <p class="text-sm text-studio-muted font-body">Dashboard surfaces drift, last reconcile, and webhook status so you can trust the state without SSH’ing in.</p>
+          <p class="text-xs text-studio-muted font-body">GitHub App integration for secure webhooks and private repos.</p>
+          <ul class="space-y-2 text-sm text-studio-muted font-body">
+            <li class="flex items-start gap-2"><span class="text-studio-accent font-mono">→</span> Health tiles by status and drift</li>
+            <li class="flex items-start gap-2"><span class="text-studio-accent font-mono">→</span> Recent commits and activity stream</li>
+          </ul>
+        </div>
+        <div class="tech-card relative overflow-hidden group reveal" style="--delay:0.1s">
+          <div class="corner-marker top-left"></div>
+          <div class="corner-marker top-right"></div>
+          <div class="corner-marker bottom-left"></div>
+          <div class="corner-marker bottom-right"></div>
+          <Image src={dashboardImg} alt="Pull Base dashboard with server health and drift status" class="w-full h-full object-cover aspect-video min-h-[220px] sm:min-h-[260px] lg:min-h-[360px]" loading="lazy" />
+          <div class="absolute inset-0 bg-gradient-to-t from-studio-black via-studio-black/40 to-transparent"></div>
+          <div class="absolute bottom-0 left-0 right-0 p-4 flex items-center justify-between">
+            <div>
+              <p class="text-sm text-white font-mono">Dashboard · Fleet health</p>
+              <p class="text-xs text-studio-muted font-body">Clear view of all servers and environments.</p>
+            </div>
+            <span class="text-xs text-green-500 font-mono bg-studio-black/60 px-2 py-1 border border-studio-border">LIVE</span>
+          </div>
+        </div>
+      </div>
+
+      <div class="grid grid-cols-1 lg:grid-cols-2 gap-8 items-center">
+        <div class="tech-card relative overflow-hidden order-2 lg:order-1 reveal" style="--delay:0.1s">
+          <div class="corner-marker top-left"></div>
+          <div class="corner-marker top-right"></div>
+          <div class="corner-marker bottom-left"></div>
+          <div class="corner-marker bottom-right"></div>
+          <Image src={serverDetailImg} alt="Pull Base server detail showing applied commit and drift history" class="w-full h-full object-cover aspect-video min-h-[220px] sm:min-h-[260px] lg:min-h-[320px]" loading="lazy" />
+          <div class="absolute inset-0 bg-gradient-to-t from-studio-black via-studio-black/40 to-transparent"></div>
+          <div class="absolute bottom-0 left-0 right-0 p-4">
+            <p class="text-sm text-white font-mono">Server detail · Drift history</p>
+            <p class="text-xs text-studio-muted font-body">See commit applied, detect drift, trigger rollback (webhooks drive updates).</p>
+          </div>
+        </div>
+        <div class="space-y-3 order-1 lg:order-2 reveal" style="--delay:0.05s">
+          <div class="inline-flex items-center gap-2 px-3 py-1 bg-studio-panel border border-studio-border font-mono text-xs text-white">Drift & rollback</div>
+          <h3 class="text-2xl font-light text-white">Fix drift fast and roll back with confidence</h3>
+          <p class="text-sm text-studio-muted font-body">Each server shows desired vs actual, last commit applied, and a rollback trigger—no playbooks required.</p>
+          <p class="text-xs text-studio-muted font-body">Role-based access keeps viewers read-only; admin-only rollback.</p>
+          <ul class="space-y-2 text-sm text-studio-muted font-body">
+            <li class="flex items-start gap-2"><span class="text-studio-accent font-mono">→</span> Drift indicator with timeline</li>
+            <li class="flex items-start gap-2"><span class="text-studio-accent font-mono">→</span> Rollback button tied to Git history</li>
+          </ul>
+        </div>
+      </div>
+
+      <div class="grid grid-cols-1 lg:grid-cols-2 gap-8 items-center">
+        <div class="space-y-3 reveal" style="--delay:0.05s">
+          <div class="inline-flex items-center gap-2 px-3 py-1 bg-studio-panel border border-studio-border font-mono text-xs text-white">Environments as guardrails</div>
+          <h3 class="text-2xl font-light text-white">Environment guardrails in one view</h3>
+          <p class="text-sm text-studio-muted font-body">See each environment’s desired commit, deployed commit, webhook health, and auto-reconcile state. Trigger rollbacks and sort/filter by webhook issues.</p>
+          <ul class="space-y-2 text-sm text-studio-muted font-body">
+            <li class="flex items-start gap-2"><span class="text-studio-accent font-mono">→</span> Desired commit vs applied commit</li>
+            <li class="flex items-start gap-2"><span class="text-studio-accent font-mono">→</span> Webhook status and last delivery</li>
+            <li class="flex items-start gap-2"><span class="text-studio-accent font-mono">→</span> Auto-reconcile toggle per environment</li>
+            <li class="flex items-start gap-2"><span class="text-studio-accent font-mono">→</span> Rollback to a prior commit with context</li>
+          </ul>
+        </div>
+        <div class="tech-card relative overflow-hidden reveal" style="--delay:0.1s">
+          <div class="corner-marker top-left"></div>
+          <div class="corner-marker top-right"></div>
+          <div class="corner-marker bottom-left"></div>
+          <div class="corner-marker bottom-right"></div>
+          <Image src={environmentsImg} alt="Pull Base environment view with desired commits and health" class="w-full h-full object-cover aspect-video min-h-[220px] sm:min-h-[260px] lg:min-h-[320px]" loading="lazy" />
+          <div class="absolute inset-0 bg-gradient-to-t from-studio-black via-studio-black/40 to-transparent"></div>
+          <div class="absolute bottom-0 left-0 right-0 p-4">
+            <p class="text-sm text-white font-mono">Environments</p>
+            <p class="text-xs text-studio-muted font-body">Guardrails for staging and prod without toil.</p>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <section id="features" class="max-w-[1400px] mx-auto px-6 mb-32">
+      <div class="flex flex-col md:flex-row justify-between items-end mb-12 border-b border-studio-border pb-6 reveal">
+        <h2 class="text-4xl font-light">SYSTEM_CAPABILITIES</h2>
+        <span class="font-mono text-xs text-studio-muted hidden md:block">IDX: 001 // CORE_FEATURES</span>
+      </div>
+
+      <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+        <div class="tech-card p-8 group min-h-[280px] flex flex-col justify-between reveal" style="--delay:0.05s">
+          <div class="corner-marker top-left"></div>
+          <div class="corner-marker top-right"></div>
+          <div class="corner-marker bottom-left"></div>
+          <div class="corner-marker bottom-right"></div>
+          
+          <div class="w-10 h-10 border border-studio-border flex items-center justify-center mb-6 group-hover:bg-white group-hover:text-black transition-colors">
+            <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M15 6H9v6l3 3 3-3V6z"/><path d="M9 12v6"/><path d="M12 18h.01"/></svg>
+          </div>
+          <div>
+            <h3 class="font-mono text-lg mb-2">Configs live in Git</h3>
+            <p class="font-body text-studio-muted text-sm leading-relaxed">
+              Define servers in YAML (packages, services, files). Git is the source of truth, including private repos via GitHub App.
+            </p>
+          </div>
+        </div>
+
+        <div class="tech-card p-8 group min-h-[280px] flex flex-col justify-between reveal" style="--delay:0.1s">
+          <div class="corner-marker top-left"></div>
+          <div class="corner-marker top-right"></div>
+          <div class="corner-marker bottom-left"></div>
+          <div class="corner-marker bottom-right"></div>
+          
+          <div class="w-10 h-10 border border-studio-border flex items-center justify-center mb-6 group-hover:bg-white group-hover:text-black transition-colors">
+            <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><path d="m16 10-4 4-4-4"/></svg>
+          </div>
+          <div>
+            <h3 class="font-mono text-lg mb-2">Drift stays fixed</h3>
+            <p class="font-body text-studio-muted text-sm leading-relaxed">
+              Pull Base monitors for drift and reconciles automatically so SSH changes don’t pile up.
+            </p>
+          </div>
+        </div>
+
+        <div class="tech-card p-8 group min-h-[280px] flex flex-col justify-between reveal" style="--delay:0.15s">
+          <div class="corner-marker top-left"></div>
+          <div class="corner-marker top-right"></div>
+          <div class="corner-marker bottom-left"></div>
+          <div class="corner-marker bottom-right"></div>
+          
+          <div class="w-10 h-10 border border-studio-border flex items-center justify-center mb-6 group-hover:bg-white group-hover:text-black transition-colors">
+            <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 2v6h6"/><path d="M3 12a9 9 0 0 1 15-6.7L21 8"/><path d="M21 22v-6h-6"/><path d="M21 12a9 9 0 0 1-15 6.7L3 16"/></svg>
+          </div>
+          <div>
+            <h3 class="font-mono text-lg mb-2">One-click rollbacks</h3>
+            <p class="font-body text-studio-muted text-sm leading-relaxed">
+              Need to undo a change? Roll back to any previous commit with a single click.
+            </p>
+          </div>
+        </div>
+
+        <div class="tech-card p-8 group min-h-[280px] flex flex-col justify-between reveal" style="--delay:0.05s">
+          <div class="corner-marker top-left"></div>
+          <div class="corner-marker top-right"></div>
+          <div class="corner-marker bottom-left"></div>
+          <div class="corner-marker bottom-right"></div>
+          
+          <div class="w-10 h-10 border border-studio-border flex items-center justify-center mb-6 group-hover:bg-white group-hover:text-black transition-colors">
+            <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="3" width="20" height="14" rx="2" ry="2"/><line x1="8" y1="21" x2="16" y2="21"/><line x1="12" y1="17" x2="12" y2="21"/></svg>
+          </div>
+          <div>
+            <h3 class="font-mono text-lg mb-2">Runs on your Linux flavors</h3>
+            <p class="font-body text-studio-muted text-sm leading-relaxed">
+              Support for multiple package managers (apk, apt, yum) and service managers (systemd, supervisor, openrc).
+            </p>
+          </div>
+        </div>
+
+        <div class="tech-card p-8 group min-h-[280px] flex flex-col justify-between reveal" style="--delay:0.1s">
+          <div class="corner-marker top-left"></div>
+          <div class="corner-marker top-right"></div>
+          <div class="corner-marker bottom-left"></div>
+          <div class="corner-marker bottom-right"></div>
+          
+          <div class="w-10 h-10 border border-studio-border flex items-center justify-center mb-6 group-hover:bg-white group-hover:text-black transition-colors">
+            <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 20v-6M6 20V10M18 20V4"/></svg>
+          </div>
+          <div>
+            <h3 class="font-mono text-lg mb-2">Change history & audit</h3>
+            <p class="font-body text-studio-muted text-sm leading-relaxed">
+              Track configuration changes and server status over time with detailed history and audit trails.
+            </p>
+          </div>
+        </div>
+
+        <div class="tech-card p-8 group min-h-[280px] flex flex-col justify-between reveal" style="--delay:0.15s">
+          <div class="corner-marker top-left"></div>
+          <div class="corner-marker top-right"></div>
+          <div class="corner-marker bottom-left"></div>
+          <div class="corner-marker bottom-right"></div>
+          
+          <div class="w-10 h-10 border border-studio-border flex items-center justify-center mb-6 group-hover:bg-white group-hover:text-black transition-colors">
+            <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="23 4 23 10 17 10"/><polyline points="1 20 1 14 7 14"/><path d="M3.51 9a9 9 0 0 1 14.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0 0 20.49 15"/></svg>
+          </div>
+          <div>
+            <h3 class="font-mono text-lg mb-2">Fix drift automatically</h3>
+            <p class="font-body text-studio-muted text-sm leading-relaxed">
+              Automatically detect and fix configuration drift, ensuring your servers always match their desired state.
+            </p>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <section id="how-it-works" class="max-w-[1400px] mx-auto px-6 mb-32">
+      <div class="tech-card border-studio-border bg-studio-panel overflow-hidden reveal">
+        <div class="grid grid-cols-1 lg:grid-cols-2">
+          <div class="p-0 border-b lg:border-b-0 lg:border-r border-studio-border relative">
+            <div class="scanline"></div>
+            <div class="flex items-center justify-between px-4 py-3 border-b border-studio-border bg-studio-black">
+              <div class="flex items-center gap-2">
+                <div class="w-2 h-2 bg-red-500 rounded-full"></div>
+                <span class="font-mono text-xs text-studio-muted">server-config.yaml</span>
+              </div>
+              <span class="font-mono text-xs text-studio-muted">READ_ONLY</span>
+            </div>
+            <div class="p-6 font-mono text-xs md:text-sm leading-loose text-studio-text overflow-x-auto">
+              <pre><code><span class="token comment"># Pull Base Server Configuration</span>
+<span class="token key">serverMetadata:</span>
+  <span class="token key">name:</span> <span class="token string">"web-server-01"</span>
+  <span class="token key">environment:</span> <span class="token string">"production"</span>
+
+<span class="token key">packages:</span>
+  - <span class="token key">name:</span> <span class="token string">"nginx"</span>
+    <span class="token key">state:</span> <span class="token string">"present"</span>
+  - <span class="token key">name:</span> <span class="token string">"nodejs"</span>
+    <span class="token key">state:</span> <span class="token string">"latest"</span>
+  - <span class="token key">name:</span> <span class="token string">"apache2"</span>
+    <span class="token key">state:</span> <span class="token string">"absent"</span>
+
+<span class="token key">services:</span>
+  - <span class="token key">name:</span> <span class="token string">"nginx"</span>
+    <span class="token key">enabled:</span> <span class="token string">true</span>
+    <span class="token key">state:</span> <span class="token string">"running"</span>
+    <span class="token key">managed:</span> <span class="token string">true</span>
+
+<span class="token key">files:</span>
+  - <span class="token key">path:</span> <span class="token string">"/etc/nginx/sites-available/myapp.conf"</span>
+    <span class="token key">content:</span> |
+      <span class="token string">server {</span>
+        <span class="token string">listen 80;</span>
+        <span class="token string">server_name myapp.example.com;</span>
+        <span class="token string">location / {</span>
+          <span class="token string">proxy_pass http://localhost:3000;</span>
+        <span class="token string">}</span>
+      <span class="token string">}</span>
+    <span class="token key">reloadService:</span> <span class="token string">"nginx"</span></code></pre>
+            </div>
+          </div>
+
+          <div class="p-8 lg:p-12 flex flex-col justify-center">
+            <h3 class="text-2xl font-light mb-4">OPERATIONAL_LOGIC</h3>
+            <div class="space-y-8 relative">
+              <div class="absolute left-[11px] top-2 bottom-2 w-[1px] bg-studio-border z-0"></div>
+
+              <div class="relative z-10 flex gap-6 group">
+                <div class="w-6 h-6 rounded-full border border-studio-border bg-studio-panel flex items-center justify-center text-[10px] font-mono group-hover:border-white group-hover:text-white transition-colors">01</div>
+                <div>
+                  <h4 class="font-mono text-sm mb-1">Define & Commit</h4>
+                  <p class="text-sm text-studio-muted font-body">Write server configurations as code and commit to Git.</p>
+                </div>
+              </div>
+              
+              <div class="relative z-10 flex gap-6 group">
+                <div class="w-6 h-6 rounded-full border border-studio-border bg-studio-panel flex items-center justify-center text-[10px] font-mono group-hover:border-white group-hover:text-white transition-colors">02</div>
+                <div>
+                  <h4 class="font-mono text-sm mb-1">Controller Observes</h4>
+                  <p class="text-sm text-studio-muted font-body">Pull Base monitors changes and determines the target state.</p>
+                </div>
+              </div>
+
+              <div class="relative z-10 flex gap-6 group">
+                <div class="w-6 h-6 rounded-full border border-studio-border bg-studio-panel flex items-center justify-center text-[10px] font-mono group-hover:border-white group-hover:text-white transition-colors">03</div>
+                <div>
+                  <h4 class="font-mono text-sm mb-1">Agents Apply</h4>
+                  <p class="text-sm text-studio-muted font-body">Server agents pull and reconcile to match desired state.</p>
+                </div>
+              </div>
+
+              <div class="relative z-10 flex gap-6 group">
+                <div class="w-6 h-6 rounded-full border border-studio-border bg-studio-panel flex items-center justify-center text-[10px] font-mono group-hover:border-white group-hover:text-white transition-colors">04</div>
+                <div>
+                  <h4 class="font-mono text-sm mb-1">Roll Back Fast</h4>
+                  <p class="text-sm text-studio-muted font-body">Use Git history to roll back. Agents reapply immediately.</p>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <section class="max-w-[1400px] mx-auto px-6 mb-24">
+      <div class="tech-card p-8 bg-studio-panel reveal">
+        <div class="corner-marker top-left"></div>
+        <div class="corner-marker top-right"></div>
+        <div class="corner-marker bottom-left"></div>
+        <div class="corner-marker bottom-right"></div>
+        <div class="flex flex-col md:flex-row md:items-center md:justify-between mb-6">
+          <h3 class="text-2xl font-light text-white">Before vs After</h3>
+          <span class="font-mono text-xs text-studio-muted">For teams still doing manual setup</span>
+        </div>
+        <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+          <div class="p-4 border border-studio-border bg-studio-black">
+            <p class="font-mono text-sm text-studio-muted mb-2">// Manual SSH</p>
+            <ul class="space-y-2 text-sm text-studio-muted font-body">
+              <li class="flex items-start gap-2">
+                <svg class="w-4 h-4 text-red-400 mt-[3px]" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M18 6 6 18"/><path d="m6 6 12 12"/></svg>
+                <span>Changes untracked and inconsistent</span>
+              </li>
+              <li class="flex items-start gap-2">
+                <svg class="w-4 h-4 text-red-400 mt-[3px]" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M18 6 6 18"/><path d="m6 6 12 12"/></svg>
+                <span>Rollbacks require guesswork</span>
+              </li>
+              <li class="flex items-start gap-2">
+                <svg class="w-4 h-4 text-red-400 mt-[3px]" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M18 6 6 18"/><path d="m6 6 12 12"/></svg>
+                <span>Drift creeps in between edits</span>
+              </li>
+            </ul>
+          </div>
+          <div class="p-4 border border-studio-border bg-studio-black">
+            <p class="font-mono text-sm text-studio-accent mb-2">// Pull Base</p>
+            <ul class="space-y-2 text-sm text-studio-muted font-body">
+              <li class="flex items-start gap-2">
+                <svg class="w-4 h-4 text-green-400 mt-[3px]" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M20 6 9 17l-5-5"/></svg>
+                <span>Git history tracks every change</span>
+              </li>
+              <li class="flex items-start gap-2">
+                <svg class="w-4 h-4 text-green-400 mt-[3px]" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M20 6 9 17l-5-5"/></svg>
+                <span>Roll back to any commit in one click</span>
+              </li>
+              <li class="flex items-start gap-2">
+                <svg class="w-4 h-4 text-green-400 mt-[3px]" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M20 6 9 17l-5-5"/></svg>
+                <span>Agents auto-fix drift across servers</span>
+              </li>
+            </ul>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <section id="comparison" class="max-w-[1400px] mx-auto px-6 mb-32">
+      <div class="flex flex-col md:flex-row justify-between items-end mb-6 reveal">
+        <h2 class="text-3xl font-light text-white">COMPARE_SOLUTIONS</h2>
+        <span class="font-mono text-xs text-studio-muted">Pull Base vs traditional tools</span>
+      </div>
+      <div class="tech-card overflow-hidden reveal">
+        <div class="corner-marker top-left"></div>
+        <div class="corner-marker top-right"></div>
+        
+        <!-- Desktop table -->
+        <div class="hidden md:block">
+          <div class="grid grid-cols-4 border-b border-studio-border bg-studio-panel/50">
+            <div class="p-4 font-mono text-xs text-studio-muted">METRIC</div>
+            <div class="p-4 font-mono text-xs text-white font-bold bg-studio-accent/10 border-x border-studio-border">PULL BASE</div>
+            <div class="p-4 font-mono text-xs text-studio-muted">ANSIBLE</div>
+            <div class="p-4 font-mono text-xs text-studio-muted">PUPPET/CHEF</div>
+          </div>
+
+          <div class="divide-y divide-studio-border">
+            <div class="grid grid-cols-4 hover:bg-white/5 transition-colors">
+              <div class="p-4 text-sm font-body text-studio-muted">Architecture</div>
+              <div class="p-4 text-sm font-mono text-white border-x border-studio-border bg-studio-accent/5">GitOps / Pull-based</div>
+              <div class="p-4 text-sm font-body text-studio-muted">Push-based</div>
+              <div class="p-4 text-sm font-body text-studio-muted">Pull-based</div>
+            </div>
+            <div class="grid grid-cols-4 hover:bg-white/5 transition-colors">
+              <div class="p-4 text-sm font-body text-studio-muted">Firewall</div>
+              <div class="p-4 text-sm font-mono text-white border-x border-studio-border bg-studio-accent/5">Outbound Only</div>
+              <div class="p-4 text-sm font-body text-studio-muted">Inbound SSH</div>
+              <div class="p-4 text-sm font-body text-studio-muted">Outbound Only</div>
+            </div>
+            <div class="grid grid-cols-4 hover:bg-white/5 transition-colors">
+              <div class="p-4 text-sm font-body text-studio-muted">Config Source</div>
+              <div class="p-4 text-sm font-mono text-white border-x border-studio-border bg-studio-accent/5">Git (Any Provider)</div>
+              <div class="p-4 text-sm font-body text-studio-muted">YAML on Control Node</div>
+              <div class="p-4 text-sm font-body text-studio-muted">DSL on Master</div>
+            </div>
+            <div class="grid grid-cols-4 hover:bg-white/5 transition-colors">
+              <div class="p-4 text-sm font-body text-studio-muted">Learning Curve</div>
+              <div class="p-4 text-sm font-mono text-white border-x border-studio-border bg-studio-accent/5">Low (Simple YAML)</div>
+              <div class="p-4 text-sm font-body text-studio-muted">Medium</div>
+              <div class="p-4 text-sm font-body text-studio-muted">High</div>
+            </div>
+            <div class="grid grid-cols-4 hover:bg-white/5 transition-colors">
+              <div class="p-4 text-sm font-body text-studio-muted">Drift Detection</div>
+              <div class="p-4 text-sm font-mono text-white border-x border-studio-border bg-studio-accent/5">Continuous &amp; Auto</div>
+              <div class="p-4 text-sm font-body text-studio-muted">Manual Check</div>
+              <div class="p-4 text-sm font-body text-studio-muted">Periodic</div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Mobile cards -->
+        <div class="grid md:hidden gap-4 p-4">
+          <div class="p-4 border border-studio-border bg-studio-black">
+            <p class="font-mono text-xs text-studio-muted mb-2">Architecture</p>
+            <div class="space-y-1 text-sm font-body text-studio-muted">
+              <div class="flex justify-between"><span>Pull Base</span><span class="font-mono text-white">GitOps / Pull</span></div>
+              <div class="flex justify-between"><span>Ansible</span><span>Push-based</span></div>
+              <div class="flex justify-between"><span>Puppet/Chef</span><span>Pull-based</span></div>
+            </div>
+          </div>
+          <div class="p-4 border border-studio-border bg-studio-black">
+            <p class="font-mono text-xs text-studio-muted mb-2">Firewall</p>
+            <div class="space-y-1 text-sm font-body text-studio-muted">
+              <div class="flex justify-between"><span>Pull Base</span><span class="font-mono text-white">Outbound Only</span></div>
+              <div class="flex justify-between"><span>Ansible</span><span>Inbound SSH</span></div>
+              <div class="flex justify-between"><span>Puppet/Chef</span><span>Outbound Only</span></div>
+            </div>
+          </div>
+          <div class="p-4 border border-studio-border bg-studio-black">
+            <p class="font-mono text-xs text-studio-muted mb-2">Config Source</p>
+            <div class="space-y-1 text-sm font-body text-studio-muted">
+              <div class="flex justify-between"><span>Pull Base</span><span class="font-mono text-white">Git (any)</span></div>
+              <div class="flex justify-between"><span>Ansible</span><span>Control node YAML</span></div>
+              <div class="flex justify-between"><span>Puppet/Chef</span><span>DSL on master</span></div>
+            </div>
+          </div>
+          <div class="p-4 border border-studio-border bg-studio-black">
+            <p class="font-mono text-xs text-studio-muted mb-2">Learning Curve</p>
+            <div class="space-y-1 text-sm font-body text-studio-muted">
+              <div class="flex justify-between"><span>Pull Base</span><span class="font-mono text-white">Low (YAML)</span></div>
+              <div class="flex justify-between"><span>Ansible</span><span>Medium</span></div>
+              <div class="flex justify-between"><span>Puppet/Chef</span><span>High</span></div>
+            </div>
+          </div>
+          <div class="p-4 border border-studio-border bg-studio-black">
+            <p class="font-mono text-xs text-studio-muted mb-2">Drift Detection</p>
+            <div class="space-y-1 text-sm font-body text-studio-muted">
+              <div class="flex justify-between"><span>Pull Base</span><span class="font-mono text-white">Continuous &amp; auto</span></div>
+              <div class="flex justify-between"><span>Ansible</span><span>Manual check</span></div>
+              <div class="flex justify-between"><span>Puppet/Chef</span><span>Periodic</span></div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <section id="faq" class="max-w-[1400px] mx-auto px-6 mb-32">
+      <div class="grid grid-cols-1 lg:grid-cols-12 gap-12">
+        <div class="lg:col-span-4">
+          <h2 class="text-4xl font-light mb-4">SYSTEM<br />QUERY</h2>
+          <p class="text-studio-muted text-sm font-body max-w-xs">
+            Frequently Asked Questions regarding Pull Base architecture and functionality.
+          </p>
+        </div>
+        <div class="lg:col-span-8 grid gap-4">
+          <div class="tech-card p-6 cursor-pointer group faq-card reveal" style="--delay:0.05s">
+            <div class="corner-marker top-left"></div>
+            <div class="corner-marker top-right"></div>
+            <div class="corner-marker bottom-left"></div>
+            <div class="corner-marker bottom-right"></div>
+            <div class="flex justify-between items-center">
+              <h4 class="font-mono text-sm group-hover:text-white transition-colors">>> DIFFERENCE_FROM_OTHERS?</h4>
+              <span class="text-studio-muted group-hover:text-white">+</span>
+            </div>
+            <p class="ans hidden mt-4 text-sm text-studio-muted font-body leading-relaxed border-t border-studio-border pt-4">
+              Pull Base is built on GitOps principles - Git is the single source of truth. It provides complete version control, history tracking, and easy rollbacks. It continuously monitors for drift automatically and reconciles servers with desired state without manual intervention.
+            </p>
+          </div>
+          <div class="tech-card p-6 cursor-pointer group faq-card reveal" style="--delay:0.1s">
+            <div class="corner-marker top-left"></div>
+            <div class="corner-marker top-right"></div>
+            <div class="corner-marker bottom-left"></div>
+            <div class="corner-marker bottom-right"></div>
+            <div class="flex justify-between items-center">
+              <h4 class="font-mono text-sm group-hover:text-white transition-colors">>> HOW_AGENT_WORKS?</h4>
+              <span class="text-studio-muted group-hover:text-white">+</span>
+            </div>
+            <p class="ans hidden mt-4 text-sm text-studio-muted font-body leading-relaxed border-t border-studio-border pt-4">
+              The agent runs on your servers as a lightweight process. It periodically checks with the Pull Base controller for the target state, compares the current server state with the desired configuration, makes necessary changes (packages, services, files), and reports status back for centralized monitoring.
+            </p>
+          </div>
+          <div class="tech-card p-6 cursor-pointer group faq-card reveal" style="--delay:0.15s">
+            <div class="corner-marker top-left"></div>
+            <div class="corner-marker top-right"></div>
+            <div class="corner-marker bottom-left"></div>
+            <div class="corner-marker bottom-right"></div>
+            <div class="flex justify-between items-center">
+              <h4 class="font-mono text-sm group-hover:text-white transition-colors">>> PLATFORM_SUPPORT?</h4>
+              <span class="text-studio-muted group-hover:text-white">+</span>
+            </div>
+            <p class="ans hidden mt-4 text-sm text-studio-muted font-body leading-relaxed border-t border-studio-border pt-4">
+              We support most Linux distributions. Package managers: apt, yum, and apk. Service management: systemd, supervisor, and openrc. Windows support is planned for future releases.
+            </p>
+          </div>
+          <div class="tech-card p-6 cursor-pointer group faq-card reveal" style="--delay:0.2s">
+            <div class="corner-marker top-left"></div>
+            <div class="corner-marker top-right"></div>
+            <div class="corner-marker bottom-left"></div>
+            <div class="corner-marker bottom-right"></div>
+            <div class="flex justify-between items-center">
+              <h4 class="font-mono text-sm group-hover:text-white transition-colors">>> ROLLBACK_CAPABILITY?</h4>
+              <span class="text-studio-muted group-hover:text-white">+</span>
+            </div>
+            <p class="ans hidden mt-4 text-sm text-studio-muted font-body leading-relaxed border-t border-studio-border pt-4">
+              Yes! Rollbacks are simple with Pull Base's Git-based approach. Point to any previous commit with a single click or use git revert. Agents automatically apply the previous configuration state.
+            </p>
+          </div>
+          <div class="tech-card p-6 cursor-pointer group faq-card reveal" style="--delay:0.25s">
+            <div class="corner-marker top-left"></div>
+            <div class="corner-marker top-right"></div>
+            <div class="corner-marker bottom-left"></div>
+            <div class="corner-marker bottom-right"></div>
+            <div class="flex justify-between items-center">
+              <h4 class="font-mono text-sm group-hover:text-white transition-colors">>> WILL_LATEST_AUTO_UPDATE?</h4>
+              <span class="text-studio-muted group-hover:text-white">+</span>
+            </div>
+            <p class="ans hidden mt-4 text-sm text-studio-muted font-body leading-relaxed border-t border-studio-border pt-4">
+              Yes. Webhooks tell Pull Base a commit landed; agents fetch latest desired state, compare desired vs actual, and roll forward on reconcile. Pin a version to stay put, or alert-only if you want review before upgrade.
+            </p>
+          </div>
+          <div class="tech-card p-6 cursor-pointer group faq-card reveal" style="--delay:0.3s">
+            <div class="corner-marker top-left"></div>
+            <div class="corner-marker top-right"></div>
+            <div class="corner-marker bottom-left"></div>
+            <div class="corner-marker bottom-right"></div>
+            <div class="flex justify-between items-center">
+              <h4 class="font-mono text-sm group-hover:text-white transition-colors">>> DO_I_NEED_ANSIBLE?</h4>
+              <span class="text-studio-muted group-hover:text-white">+</span>
+            </div>
+            <p class="ans hidden mt-4 text-sm text-studio-muted font-body leading-relaxed border-t border-studio-border pt-4">
+              No. Pull Base uses straightforward YAML (packages, services, files) and no control node to run playbooks. Point to your repo (private repos supported), and agents handle apply, drift detection, and rollback automatically.
+            </p>
+          </div>
+          <div class="tech-card p-6 cursor-pointer group faq-card reveal" style="--delay:0.25s">
+            <div class="corner-marker top-left"></div>
+            <div class="corner-marker top-right"></div>
+            <div class="corner-marker bottom-left"></div>
+            <div class="corner-marker bottom-right"></div>
+            <div class="flex justify-between items-center">
+              <h4 class="font-mono text-sm group-hover:text-white transition-colors">>> PRIVATE_REPOS?</h4>
+              <span class="text-studio-muted group-hover:text-white">+</span>
+            </div>
+            <p class="ans hidden mt-4 text-sm text-studio-muted font-body leading-relaxed border-t border-studio-border pt-4">
+              Yes. Connect Pull Base via a GitHub App to receive webhooks and fetch configs from private repositories securely.
+            </p>
+          </div>
+          <div class="tech-card p-6 cursor-pointer group faq-card reveal" style="--delay:0.3s">
+            <div class="corner-marker top-left"></div>
+            <div class="corner-marker top-right"></div>
+            <div class="corner-marker bottom-left"></div>
+            <div class="corner-marker bottom-right"></div>
+            <div class="flex justify-between items-center">
+              <h4 class="font-mono text-sm group-hover:text-white transition-colors">>> ROLES_AND_PERMISSIONS?</h4>
+              <span class="text-studio-muted group-hover:text-white">+</span>
+            </div>
+            <p class="ans hidden mt-4 text-sm text-studio-muted font-body leading-relaxed border-t border-studio-border pt-4">
+              Role-based access is built in. Admins manage environments and rollbacks; users collaborate; viewers stay read-only so production configs are protected.
+            </p>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <section id="get-started" class="max-w-[1400px] mx-auto px-4 md:px-6 mb-20">
+      <div class="tech-card p-4 sm:p-10 text-center bg-technical-grid relative overflow-hidden flex flex-col items-center justify-center min-h-[320px]">
+        <div class="corner-marker top-left w-4 h-4"></div>
+        <div class="corner-marker top-right w-4 h-4"></div>
+        <div class="corner-marker bottom-left w-4 h-4"></div>
+        <div class="corner-marker bottom-right w-4 h-4"></div>
+        
+        <div class="relative z-10 w-full max-w-full flex flex-col items-center justify-center gap-4 text-center px-2">
+          <h2 class="text-xl sm:text-2xl md:text-5xl font-light tracking-tighter break-all">READY_TO_DEPLOY</h2>
+          <p class="text-studio-muted font-body text-sm sm:text-base max-w-lg mx-auto">
+            Pull Base is open source and ready for production. Start managing your servers with Git today.
+          </p>
+          
+          <div class="w-full max-w-md mx-auto flex flex-col sm:flex-row gap-3 sm:gap-4 items-center justify-center mt-2">
+            <a href="https://docs.pullbase.io/quickstart" class="w-full sm:w-auto bg-white text-black px-6 py-3 font-mono text-sm font-bold hover:bg-studio-accent hover:text-white transition-colors">
+              QUICK_START
+            </a>
+            <a href="https://github.com/pullbase/pullbase" target="_blank" class="w-full sm:w-auto border border-studio-border text-white px-6 py-3 font-mono text-sm hover:border-white transition-colors">
+              VIEW_SOURCE
+            </a>
+          </div>
+          <p class="text-xs text-studio-muted font-body">Apache 2.0 Licensed · No credit card required</p>
+        </div>
+        
+        <div class="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[340px] h-[340px] bg-studio-accent/8 rounded-full blur-3xl pointer-events-none"></div>
+      </div>
+    </section>
+
+    <footer class="border-t border-studio-border bg-studio-panel py-12">
+      <div class="max-w-[1400px] mx-auto px-6 flex flex-col md:flex-row justify-between items-center gap-6">
+        <div class="flex items-center gap-3">
+          <Image src={logoNavWhite} alt="Pull Base" class="h-6 w-auto" loading="lazy" />
+          <span class="font-mono text-xs text-studio-muted">© 2025 Pull Base Limited.</span>
+        </div>
+        
+        <div class="flex gap-8 font-mono text-xs text-studio-muted">
+          <a href="https://docs.pullbase.io" class="hover:text-white transition-colors">DOCS</a>
+          <a href="https://x.com/pullbase" class="hover:text-white transition-colors">TWITTER</a>
+          <a href="https://www.linkedin.com/company/pullbase" class="hover:text-white transition-colors">LINKEDIN</a>
+        </div>
+      </div>
+    </footer>
+  </main>
+
+  <script is:inline>
+    const initPageEffects = () => {
+      const cards = document.querySelectorAll('.tech-card');
+      const heroCard = document.getElementById('hero-card');
+      const marquee = document.getElementById('ticker');
+      const revealElements = Array.from(document.querySelectorAll('.reveal'));
+
+      document.addEventListener('mousemove', (e) => {
+        cards.forEach((card) => {
+          const rect = card.getBoundingClientRect();
+          if (rect.bottom > 0 && rect.top < window.innerHeight) {
+            const x = e.clientX - rect.left;
+            const y = e.clientY - rect.top;
+            card.style.setProperty('--mouse-x', `${x}px`);
+            card.style.setProperty('--mouse-y', `${y}px`);
+          }
+        });
+
+        if (heroCard) {
+          const xPercent = e.clientX / window.innerWidth - 0.5;
+          const yPercent = e.clientY / window.innerHeight - 0.5;
+          const rotateY = xPercent * 10;
+          const rotateX = yPercent * -10;
+          heroCard.style.transform = `
+            perspective(1000px) 
+            rotateX(${rotateX}deg) 
+            rotateY(${rotateY}deg) 
+            scale3d(1.02, 1.02, 1.02)
+          `;
+        }
+      });
+
+      document.addEventListener('mouseleave', () => {
+        if (heroCard) {
+          heroCard.style.transform = 'perspective(1000px) rotateX(0) rotateY(0) scale3d(1, 1, 1)';
+        }
+      });
+
+      document.querySelectorAll('.faq-card').forEach((card) => {
+        card.addEventListener('click', () => {
+          const answer = card.querySelector('.ans');
+          if (answer) {
+            answer.classList.toggle('hidden');
+          }
+        });
+      });
+
+      // Reveal on scroll
+      if (marquee) {
+        setTimeout(() => marquee.classList.add('visible'), 80);
+      }
+
+      if ('IntersectionObserver' in window) {
+        const observer = new IntersectionObserver(
+          (entries) => {
+            entries.forEach((entry) => {
+              if (entry.isIntersecting) {
+                entry.target.classList.add('visible');
+                observer.unobserve(entry.target);
+              }
+            });
+          },
+          { threshold: 0.12, rootMargin: '0px 0px -10% 0px' }
+        );
+        revealElements
+          .filter((el) => el !== marquee)
+          .forEach((el) => observer.observe(el));
+      } else {
+        revealElements.forEach((el) => el.classList.add('visible'));
+      }
+    };
+
+    if (document.readyState === 'loading') {
+      document.addEventListener('DOMContentLoaded', initPageEffects);
+    } else {
+      initPageEffects();
+    }
+  </script>
+</Layout>

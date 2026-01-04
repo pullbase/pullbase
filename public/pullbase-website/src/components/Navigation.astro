@@ -1,0 +1,307 @@
+---
+import DarkModeToggle from '../components/DarkModeToggle.astro';
+
+// Get current page URL to determine if we're on homepage or not
+const currentPath = Astro.url.pathname;
+const isHomepage = currentPath === '/';
+const homePrefix = isHomepage ? '' : '/';
+---
+
+<nav
+  class="fixed top-0 left-0 right-0 z-40 bg-white/80 backdrop-blur-md dark:bg-gray-900/80 transition-all duration-300 ease-in-out"
+>
+  <div class="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
+    <div class="flex h-16 items-center justify-between">
+      <div class="flex items-center">
+        <a href="/" class="flex items-center">
+          <img class="h-10 w-auto dark:hidden" src="/logo-nav-dark.svg" alt="Pull Base" width="120" height="40" />
+          <img class="h-10 w-auto hidden dark:block" src="/logo-nav-white.svg" alt="Pull Base" width="120" height="40" />
+        </a>
+      </div>
+      <div class="hidden md:flex md:items-center md:space-x-8">
+        <a
+          href={`${homePrefix}#how-it-works`}
+          class="text-gray-700 hover:text-primary-600 dark:text-gray-300 dark:hover:text-primary-400 px-3 py-2 text-sm font-medium transition-colors duration-300"
+          >How It Works</a
+        >
+        <a
+          href={`${homePrefix}#features`}
+          class="text-gray-700 hover:text-primary-600 dark:text-gray-300 dark:hover:text-primary-400 px-3 py-2 text-sm font-medium transition-colors duration-300"
+          >Features</a
+        >
+        <a
+          href={`${homePrefix}#comparison`}
+          class="text-gray-700 hover:text-primary-600 dark:text-gray-300 dark:hover:text-primary-400 px-3 py-2 text-sm font-medium transition-colors duration-300"
+          >Compare</a
+        >
+        <a
+          href="/roadmap"
+          class="text-gray-700 hover:text-primary-600 dark:text-gray-300 dark:hover:text-primary-400 px-3 py-2 text-sm font-medium transition-colors duration-300"
+          >Roadmap</a
+        >
+        <a
+          href={`${homePrefix}#faq`}
+          class="text-gray-700 hover:text-primary-600 dark:text-gray-300 dark:hover:text-primary-400 px-3 py-2 text-sm font-medium transition-colors duration-300"
+          >FAQ</a
+        >
+        <a
+          href="https://docs.pullbase.io/quickstart"
+          class="text-gray-700 hover:text-primary-600 dark:text-gray-300 dark:hover:text-primary-400 px-3 py-2 text-sm font-medium transition-colors duration-300"
+          >Get Started</a
+        >
+        <DarkModeToggle />
+      </div>
+      <div class="md:hidden">
+        <button
+          type="button"
+          class="inline-flex items-center justify-center rounded-md p-2 text-gray-700 hover:bg-gray-100 hover:text-primary-600 dark:text-gray-300 dark:hover:bg-gray-700 dark:hover:text-primary-400 transition-colors duration-300"
+        >
+          <span class="sr-only">Open main menu</span>
+          <svg
+            class="h-6 w-6 hamburger-icon"
+            fill="none"
+            viewBox="0 0 24 24"
+            stroke-width="1.5"
+            stroke="currentColor"
+            aria-hidden="true"
+          >
+            <path stroke-linecap="round" stroke-linejoin="round" d="M3.75 6.75h16.5M3.75 12h16.5m-16.5 5.25h16.5"
+            ></path>
+          </svg>
+          <svg
+            class="hidden h-6 w-6 close-icon"
+            fill="none"
+            viewBox="0 0 24 24"
+            stroke-width="1.5"
+            stroke="currentColor"
+            aria-hidden="true"
+          >
+            <path stroke-linecap="round" stroke-linejoin="round" d="M6 18L18 6M6 6l12 12"></path>
+          </svg>
+        </button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Mobile menu -->
+  <div
+    class="md:hidden mobile-menu"
+    style="display: none;"
+  >
+    <div class="space-y-1 px-2 pb-3 pt-2">
+      <a
+        href={`${homePrefix}#how-it-works`}
+        class="block rounded-md px-3 py-2 text-base font-medium text-gray-700 hover:bg-gray-100 hover:text-primary-600 dark:text-gray-300 dark:hover:bg-gray-700 dark:hover:text-primary-400 transition-colors duration-300 mobile-menu-link"
+      >
+        How It Works
+      </a>
+      <a
+        href={`${homePrefix}#features`}
+        
+        class="block rounded-md px-3 py-2 text-base font-medium text-gray-700 hover:bg-gray-100 hover:text-primary-600 dark:text-gray-300 dark:hover:bg-gray-700 dark:hover:text-primary-400 transition-colors duration-300 mobile-menu-link"
+      >
+        Features
+      </a>
+      <a
+        href={`${homePrefix}#comparison`}
+        
+        class="block rounded-md px-3 py-2 text-base font-medium text-gray-700 hover:bg-gray-100 hover:text-primary-600 dark:text-gray-300 dark:hover:bg-gray-700 dark:hover:text-primary-400 transition-colors duration-300 mobile-menu-link"
+      >
+        Compare
+      </a>
+      <a
+        href="/roadmap"
+        
+        class="block rounded-md px-3 py-2 text-base font-medium text-gray-700 hover:bg-gray-100 hover:text-primary-600 dark:text-gray-300 dark:hover:bg-gray-700 dark:hover:text-primary-400 transition-colors duration-300 mobile-menu-link"
+      >
+        Roadmap
+      </a>
+      <a
+        href={`${homePrefix}#faq`}
+        
+        class="block rounded-md px-3 py-2 text-base font-medium text-gray-700 hover:bg-gray-100 hover:text-primary-600 dark:text-gray-300 dark:hover:bg-gray-700 dark:hover:text-primary-400 transition-colors duration-300 mobile-menu-link"
+      >
+        FAQ
+      </a>
+      <a
+        href="https://docs.pullbase.io/quickstart"
+        
+        class="block rounded-md px-3 py-2 text-base font-medium text-gray-700 hover:bg-gray-100 hover:text-primary-600 dark:text-gray-300 dark:hover:bg-gray-700 dark:hover:text-primary-400 transition-colors duration-300 mobile-menu-link"
+      >
+        Get Started
+      </a>
+      <div class="px-3 py-2">
+        <button
+          id="mobile-theme-toggle"
+          type="button"
+          class="text-gray-500 hover:bg-gray-100 dark:text-gray-400 dark:hover:bg-gray-700 rounded-lg p-2.5 inline-flex items-center"
+          aria-label="Toggle Dark Mode"
+        >
+          <svg
+            id="mobile-theme-toggle-dark-icon"
+            class="w-5 h-5"
+            fill="currentColor"
+            viewBox="0 0 20 20"
+            xmlns="http://www.w3.org/2000/svg"
+          >
+            <path d="M17.293 13.293A8 8 0 016.707 2.707a8.001 8.001 0 1010.586 10.586z"></path>
+          </svg>
+          <svg
+            id="mobile-theme-toggle-light-icon"
+            class="w-5 h-5 hidden"
+            fill="currentColor"
+            viewBox="0 0 20 20"
+            xmlns="http://www.w3.org/2000/svg"
+          >
+            <path
+              d="M10 2a1 1 0 011 1v1a1 1 0 11-2 0V3a1 1 0 011-1zm4 8a4 4 0 11-8 0 4 4 0 018 0zm-.464 4.95l.707.707a1 1 0 001.414-1.414l-.707-.707a1 1 0 00-1.414 1.414zm2.12-10.607a1 1 0 010 1.414l-.706.707a1 1 0 11-1.414-1.414l.707-.707a1 1 0 011.414 0zM17 11a1 1 0 100-2h-1a1 1 0 100 2h1zm-7 4a1 1 0 011 1v1a1 1 0 11-2 0v-1a1 1 0 011-1zM5.05 6.464A1 1 0 106.465 5.05l-.708-.707a1 1 0 00-1.414 1.414l.707.707zm1.414 8.486l-.707.707a1 1 0 01-1.414-1.414l.707-.707a1 1 0 011.414 1.414zM4 11a1 1 0 100-2H3a1 1 0 000 2h1z"
+              fill-rule="evenodd"
+              clip-rule="evenodd"></path>
+          </svg>
+        </button>
+      </div>
+    </div>
+  </div>
+</nav>
+
+<script is:inline>
+  // Add scroll effect to navbar
+  document.addEventListener('DOMContentLoaded', function () {
+    const nav = document.querySelector('nav');
+
+    function handleScroll() {
+      if (window.scrollY > 50) {
+        nav.classList.add('shadow-md');
+        nav.classList.add('bg-white/95');
+        nav.classList.add('dark:bg-gray-900/95');
+      } else {
+        nav.classList.remove('shadow-md');
+        nav.classList.remove('bg-white/95');
+        nav.classList.remove('dark:bg-gray-900/95');
+      }
+    }
+
+    window.addEventListener('scroll', handleScroll);
+
+    // Handle active link highlighting
+    const navLinks = document.querySelectorAll('nav a[href^="#"]');
+    const sections = [...navLinks]
+      .map((link) => {
+        const sectionId = link.getAttribute('href');
+        return document.querySelector(sectionId);
+      })
+      .filter(Boolean);
+
+    function highlightActiveLink() {
+      const scrollPosition = window.scrollY;
+
+      sections.forEach((section, index) => {
+        const link = navLinks[index];
+        const sectionTop = section.offsetTop - 100;
+        const sectionHeight = section.offsetHeight;
+
+        if (scrollPosition >= sectionTop && scrollPosition < sectionTop + sectionHeight) {
+          link.classList.add('text-primary-600', 'dark:text-primary-400');
+        } else {
+          link.classList.remove('text-primary-600', 'dark:text-primary-400');
+        }
+      });
+    }
+
+    window.addEventListener('scroll', highlightActiveLink);
+
+    // Mobile navigation vanilla JS
+    const mobileMenuButton = document.querySelector('.md\\:hidden button[type="button"]');
+    const mobileMenu = document.querySelector('.mobile-menu');
+    const mobileMenuLinks = document.querySelectorAll('.mobile-menu-link');
+    
+    let isOpen = false;
+    
+    if (mobileMenuButton && mobileMenu) {
+      // Toggle mobile menu
+      mobileMenuButton.addEventListener('click', function(e) {
+        e.preventDefault();
+        isOpen = !isOpen;
+        
+        if (isOpen) {
+          mobileMenu.style.display = 'block';
+          // Add Alpine-style classes for animation
+          mobileMenu.classList.add('transform', 'opacity-100', 'scale-100');
+          mobileMenu.classList.remove('opacity-0', 'scale-95');
+        } else {
+          mobileMenu.classList.add('opacity-0', 'scale-95');
+          mobileMenu.classList.remove('opacity-100', 'scale-100');
+          setTimeout(() => {
+            if (!isOpen) mobileMenu.style.display = 'none';
+          }, 150);
+        }
+        
+        // Toggle hamburger icons
+        const hamburgerIcon = mobileMenuButton.querySelector('.hamburger-icon');
+        const closeIcon = mobileMenuButton.querySelector('.close-icon');
+        
+        if (isOpen) {
+          hamburgerIcon.classList.add('hidden');
+          closeIcon.classList.remove('hidden');
+        } else {
+          hamburgerIcon.classList.remove('hidden');
+          closeIcon.classList.add('hidden');
+        }
+      });
+      
+      // Close mobile menu when clicking links
+      mobileMenuLinks.forEach(link => {
+        link.addEventListener('click', function() {
+          isOpen = false;
+          mobileMenu.style.display = 'none';
+          mobileMenu.classList.add('opacity-0', 'scale-95');
+          mobileMenu.classList.remove('opacity-100', 'scale-100');
+          
+          // Reset hamburger icons
+          const hamburgerIcon = mobileMenuButton.querySelector('svg:first-of-type');
+          const closeIcon = mobileMenuButton.querySelector('svg:last-of-type');
+          hamburgerIcon.classList.remove('hidden');
+          closeIcon.classList.add('hidden');
+        });
+      });
+    }
+
+    // Setup dark mode toggle for mobile
+    const mobileThemeToggleBtn = document.getElementById('mobile-theme-toggle');
+    const mobileThemeToggleDarkIcon = document.getElementById('mobile-theme-toggle-dark-icon');
+    const mobileThemeToggleLightIcon = document.getElementById('mobile-theme-toggle-light-icon');
+
+    // Initialize mobile toggle state based on current theme
+    if (mobileThemeToggleBtn && mobileThemeToggleDarkIcon && mobileThemeToggleLightIcon) {
+      if (document.documentElement.classList.contains('dark')) {
+        mobileThemeToggleDarkIcon.classList.add('hidden');
+        mobileThemeToggleLightIcon.classList.remove('hidden');
+      } else {
+        mobileThemeToggleDarkIcon.classList.remove('hidden');
+        mobileThemeToggleLightIcon.classList.add('hidden');
+      }
+
+      // Add event listener for mobile toggle
+      mobileThemeToggleBtn.addEventListener('click', function () {
+        mobileThemeToggleDarkIcon.classList.toggle('hidden');
+        mobileThemeToggleLightIcon.classList.toggle('hidden');
+
+        // Also toggle the desktop icons to keep them in sync
+        const desktopDarkIcon = document.getElementById('theme-toggle-dark-icon');
+        const desktopLightIcon = document.getElementById('theme-toggle-light-icon');
+        if (desktopDarkIcon && desktopLightIcon) {
+          desktopDarkIcon.classList.toggle('hidden');
+          desktopLightIcon.classList.toggle('hidden');
+        }
+
+        if (document.documentElement.classList.contains('dark')) {
+          document.documentElement.classList.remove('dark');
+          localStorage.setItem('color-theme', 'light');
+        } else {
+          document.documentElement.classList.add('dark');
+          localStorage.setItem('color-theme', 'dark');
+        }
+      });
+    }
+  });
+</script>

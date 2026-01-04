@@ -1,0 +1,54 @@
+# Pullbase Docker Compose Example
+# Copy this file to docker-compose.yml and customize for your environment
+#
+# Documentation: https://docs.pullbase.io/installation
+
+services:
+  db:
+    image: postgres:16-alpine
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: pullbaseuser
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}  # Set in .env
+      POSTGRES_DB: pullbasedb
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U pullbaseuser -d pullbasedb"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  pullbase:
+    image: pullbaseio/pullbase:latest
+    restart: unless-stopped
+    depends_on:
+      db:
+        condition: service_healthy
+    ports:
+      - "8080:8080"
+    environment:
+      # Database
+      PULLBASE_DB_TYPE: postgres
+      PULLBASE_DB_HOST: db
+      PULLBASE_DB_PORT: 5432
+      PULLBASE_DB_USER: pullbaseuser
+      PULLBASE_DB_PASSWORD: ${POSTGRES_PASSWORD}
+      PULLBASE_DB_NAME: pullbasedb
+      # Security - CHANGE THESE IN PRODUCTION
+      PULLBASE_JWT_SECRET: ${PULLBASE_JWT_SECRET}
+      PULLBASE_WEBHOOK_SECRET_KEY: ${PULLBASE_WEBHOOK_SECRET_KEY}
+      PULLBASE_BOOTSTRAP_SECRET_FILE: /app/secrets/bootstrap.secret
+      # Logging
+      PULLBASE_LOG_FORMAT: json
+      PULLBASE_LOG_LEVEL: info
+      # GitHub App (optional - for private repos)
+      # PULLBASE_GITHUB_APP_ID: ${PULLBASE_GITHUB_APP_ID}
+      # PULLBASE_GITHUB_APP_PRIVATE_KEY_PATH: /config/github-app.pem
+    volumes:
+      - pullbase_secrets:/app/secrets
+      # - ./config:/config:ro  # Uncomment for GitHub App private key
+
+volumes:
+  postgres_data:
+  pullbase_secrets:
