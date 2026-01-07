@@ -17,6 +17,34 @@ Pullbase solves this with:
 - **Automatic Drift Detection** — Agents continuously compare actual vs. desired state and auto-reconcile.
 - **One-Click Rollbacks** — Point to any previous commit and agents revert automatically.
 
+## Architecture
+
+```
+┌─────────────────────────────────────────────────────────────┐
+│                      Git Repository                         │
+│                    (config.yaml files)                      │
+└─────────────────────────────────────────────────────────────┘
+                              │
+                              ▼
+┌─────────────────────────────────────────────────────────────┐
+│                    Pullbase Server                          │
+│  ┌─────────────┐  ┌─────────────┐  ┌─────────────────────┐  │
+│  │  Dashboard  │  │     API     │  │   Git Monitor       │  │
+│  │  (Web UI)   │  │             │  │   (Webhooks/Poll)   │  │
+│  └─────────────┘  └─────────────┘  └─────────────────────┘  │
+└─────────────────────────────────────────────────────────────┘
+                              │
+              ┌───────────────┼───────────────┐
+              ▼               ▼               ▼
+        ┌──────────┐   ┌──────────┐   ┌──────────┐
+        │  Agent   │   │  Agent   │   │  Agent   │
+        │ (web-01) │   │ (web-02) │   │ (db-01)  │
+        └──────────┘   └──────────┘   └──────────┘
+```
+
+- **Server**: Manages environments, monitors Git, serves the dashboard, coordinates agents
+- **Agents**: Run on managed servers, pull configurations, apply desired state, report status
+
 ## Quick Start
 
 Get Pullbase running in under 5 minutes.
@@ -164,33 +192,6 @@ Full documentation is available at **[docs.pullbase.io](https://docs.pullbase.io
 - [Security & Hardening](https://docs.pullbase.io/security-hardening)
 - [CLI Reference](https://docs.pullbase.io/reference/cli)
 
-## Architecture
-
-```
-┌─────────────────────────────────────────────────────────────┐
-│                      Git Repository                         │
-│                    (config.yaml files)                      │
-└─────────────────────────────────────────────────────────────┘
-                              │
-                              ▼
-┌─────────────────────────────────────────────────────────────┐
-│                    Pullbase Server                          │
-│  ┌─────────────┐  ┌─────────────┐  ┌─────────────────────┐  │
-│  │  Dashboard  │  │   API       │  │   Git Monitor       │  │
-│  │  (Web UI)   │  │             │  │   (Webhooks/Poll)   │  │
-│  └─────────────┘  └─────────────┘  └─────────────────────┘  │
-└─────────────────────────────────────────────────────────────┘
-                              │
-              ┌───────────────┼───────────────┐
-              ▼               ▼               ▼
-        ┌──────────┐   ┌──────────┐   ┌──────────┐
-        │  Agent   │   │  Agent   │   │  Agent   │
-        │ (web-01) │   │ (web-02) │   │ (db-01)  │
-        └──────────┘   └──────────┘   └──────────┘
-```
-
-- **Server**: Manages environments, monitors Git, serves the dashboard, coordinates agents
-- **Agents**: Run on managed servers, pull configurations, apply desired state, report status
 
 ## Building from Source
 
