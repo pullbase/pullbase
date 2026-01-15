@@ -15,7 +15,6 @@ import (
 	"github.com/pullbase/pullbase/server/pkg/logging"
 	"github.com/testcontainers/testcontainers-go"
 	"github.com/testcontainers/testcontainers-go/modules/postgres"
-	"github.com/testcontainers/testcontainers-go/wait"
 )
 
 const (
@@ -27,8 +26,6 @@ const (
 
 	DefaultStartupTimeout = 5 * time.Minute
 
-	// FallbackSchemaVersion is the migration version the fallback schema represents.
-	// Update this when adding new migrations.
 	FallbackSchemaVersion = 22
 )
 
@@ -75,12 +72,7 @@ func StartPostgresContainer(t testing.TB, config ContainerConfig) (*TestDB, erro
 		postgres.WithDatabase(config.Database),
 		postgres.WithUsername(config.Username),
 		postgres.WithPassword(config.Password),
-		testcontainers.WithWaitStrategy(
-			wait.ForAll(
-				wait.ForListeningPort("5432/tcp"),
-				wait.ForLog("database system is ready to accept connections").WithOccurrence(2),
-			).WithStartupTimeout(config.StartupTimeout),
-		),
+		postgres.BasicWaitStrategies(),
 	)
 	if err != nil {
 		return nil, fmt.Errorf("failed to start postgres container: %w", err)
