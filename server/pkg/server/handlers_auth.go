@@ -312,7 +312,7 @@ func (a *API) BootstrapAdminHandler(w http.ResponseWriter, r *http.Request) {
 	a.bootstrapMu.Lock()
 	if !a.bootstrapEnabled || len(a.bootstrapSecretHash) == 0 {
 		a.bootstrapMu.Unlock()
-		writeAPIError(w, apierrors.NotFound("Bootstrap", "admin"))
+		writeAPIError(w, apierrors.Gone("Admin bootstrap is not available"))
 		return
 	}
 
@@ -368,7 +368,7 @@ func (a *API) BootstrapAdminHandler(w http.ResponseWriter, r *http.Request) {
 	}
 	if hasAdmin {
 		a.DisableBootstrap()
-		writeAPIError(w, apierrors.Conflict("Admin bootstrap has already been completed"))
+		writeAPIError(w, apierrors.Gone("Admin bootstrap has already been completed"))
 		return
 	}
 
