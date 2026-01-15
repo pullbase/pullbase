@@ -215,5 +215,5 @@ func (api *API) sendStatusNotification(ctx context.Context, serverID string, pay
 		)
 	}
 
-	api.Notifications.SendAsync(*env.NotificationWebhookURL, webhookPayload)
+	api.Notifications.SendAsync(ctx, *env.NotificationWebhookURL, webhookPayload)
 }

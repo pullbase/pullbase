@@ -88,9 +88,9 @@ func TestApplyEnvOverridesTLS(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			for key, value := range tt.envVars {
 				os.Setenv(key, value)
-				defer os.Unsetenv(key)
+				t.Cleanup(func() { os.Unsetenv(key) })
 			}
-
+			
 			config := &Config{}
 			config.TLS.Enabled = tt.initialTLSEnabled
 			config.TLS.CertPath = tt.initialCertPath

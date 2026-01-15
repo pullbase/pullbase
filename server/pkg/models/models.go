@@ -2,6 +2,7 @@ package models
 
 import (
 	"encoding/json"
+	"fmt"
 	"time"
 )
 
@@ -78,16 +79,43 @@ type DriftDetails struct {
 }
 
 type AgentStatus struct {
-	ID           int              `json:"id" db:"id"`
-	ServerID     string           `json:"server_id" db:"server_id"`
-	CommitHash   string           `json:"commit_hash" db:"commit_hash"`
-	IsDrifted    bool             `json:"is_drifted" db:"is_drifted"`
-	Status       string           `json:"status" db:"status"`
-	ErrorMessage *string          `json:"error_message,omitempty" db:"error_message"`
-	AgentVersion *string          `json:"agent_version,omitempty" db:"agent_version"`
-	DriftDetails *json.RawMessage `json:"drift_details,omitempty" db:"drift_details"`
-	Timestamp    time.Time        `json:"timestamp" db:"agent_timestamp"`
-	CreatedAt    time.Time        `json:"created_at" db:"created_at"`
+	ID              int           `json:"id" db:"id"`
+	ServerID        string        `json:"server_id" db:"server_id"`
+	CommitHash      string        `json:"commit_hash" db:"commit_hash"`
+	IsDrifted       bool          `json:"is_drifted" db:"is_drifted"`
+	Status          string        `json:"status" db:"status"`
+	ErrorMessage    *string       `json:"error_message,omitempty" db:"error_message"`
+	AgentVersion    *string       `json:"agent_version,omitempty" db:"agent_version"`
+	DriftDetails    *DriftDetails `json:"drift_details,omitempty" db:"-"`
+	DriftDetailsRaw string        `json:"-" db:"drift_details"`
+	Timestamp       time.Time     `json:"timestamp" db:"agent_timestamp"`
+	CreatedAt       time.Time     `json:"created_at" db:"created_at"`
+}
+
+func (s *AgentStatus) PrepareDriftDetailsRaw() error {
+	if s.DriftDetails == nil {
+		s.DriftDetailsRaw = "null"
+		return nil
+	}
+	b, err := json.Marshal(s.DriftDetails)
+	if err != nil {
+		return fmt.Errorf("marshal drift_details: %w", err)
+	}
+	s.DriftDetailsRaw = string(b)
+	return nil
+}
+
+func (s *AgentStatus) LoadDriftDetails() error {
+	if s.DriftDetailsRaw == "" || s.DriftDetailsRaw == "null" {
+		s.DriftDetails = nil
+		return nil
+	}
+	var d DriftDetails
+	if err := json.Unmarshal([]byte(s.DriftDetailsRaw), &d); err != nil {
+		return fmt.Errorf("unmarshal drift_details: %w", err)
+	}
+	s.DriftDetails = &d
+	return nil
 }
 
 // AuditLog represents a security audit log entry

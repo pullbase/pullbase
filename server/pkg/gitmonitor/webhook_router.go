@@ -4,20 +4,20 @@ import (
 	"context"
 	"fmt"
 	"io"
-	"log/slog"
 	"net/http"
 	"strings"
 	"sync"
 	"time"
 
 	"github.com/pullbase/pullbase/server/pkg/database"
+	"github.com/pullbase/pullbase/server/pkg/logging"
 )
 
 // WebhookRouter handles incoming webhooks from Git providers
 type WebhookRouter struct {
 	providers map[Provider]GitProvider
 	handlers  map[Provider]WebhookHandler
-	logger    *slog.Logger
+	logger    *logging.Logger
 	monitor   *EnvironmentMonitor
 	mu        sync.RWMutex
 }
@@ -28,7 +28,7 @@ type WebhookHandler interface {
 }
 
 // NewWebhookRouter creates a new webhook router
-func NewWebhookRouter(logger *slog.Logger, monitor *EnvironmentMonitor) *WebhookRouter {
+func NewWebhookRouter(logger *logging.Logger, monitor *EnvironmentMonitor) *WebhookRouter {
 	router := &WebhookRouter{
 		providers: make(map[Provider]GitProvider),
 		handlers:  make(map[Provider]WebhookHandler),
@@ -210,14 +210,14 @@ type WebhookStatus struct {
 // WebhookManager manages webhook registration and status
 type WebhookManager struct {
 	router   *WebhookRouter
-	logger   *slog.Logger
+	logger   *logging.Logger
 	repo     *database.EnvironmentRepository
 	mu       sync.RWMutex
 	statuses map[int64]*WebhookStatus
 }
 
 // NewWebhookManager creates a new webhook manager
-func NewWebhookManager(router *WebhookRouter, logger *slog.Logger, repo *database.EnvironmentRepository) *WebhookManager {
+func NewWebhookManager(router *WebhookRouter, logger *logging.Logger, repo *database.EnvironmentRepository) *WebhookManager {
 	return &WebhookManager{
 		router:   router,
 		logger:   logger,

@@ -3,10 +3,12 @@ package database
 import (
 	"context"
 	"fmt"
-	"log/slog"
 	"os"
 	"path/filepath"
+	"strings"
 	"time"
+
+	"github.com/pullbase/pullbase/server/pkg/logging"
 
 	"github.com/golang-migrate/migrate/v4"
 	"github.com/golang-migrate/migrate/v4/database/postgres"
@@ -71,7 +73,7 @@ func newPostgres(cfg Config) (*sqlx.DB, error) {
 		return nil, fmt.Errorf("error connecting to PostgreSQL: %w", err)
 	}
 
-	slog.Info("connected to PostgreSQL database", "host", cfg.Host, "database", cfg.DatabaseName)
+	logging.Info("connected to PostgreSQL database", "host", cfg.Host, "database", cfg.DatabaseName)
 	return db, nil
 }
 
@@ -106,8 +108,50 @@ func newSQLite(cfg Config) (*sqlx.DB, error) {
 		return nil, fmt.Errorf("error connecting to SQLite: %w", err)
 	}
 
-	slog.Info("connected to SQLite database", "path", dbPath)
+	if err := checkSQLiteVersion(db); err != nil {
+		logging.Warn("SQLite version check failed", "error", err)
+	}
+
+	logging.Info("connected to SQLite database", "path", dbPath)
 	return db, nil
+}
+
+func checkSQLiteVersion(db *sqlx.DB) error {
+	var version string
+	if err := db.Get(&version, "SELECT sqlite_version()"); err != nil {
+		return fmt.Errorf("failed to query SQLite version: %w", err)
+	}
+
+	major, minor, patch, err := parseSQLiteVersion(version)
+	if err != nil {
+		return fmt.Errorf("failed to parse SQLite version %q: %w", version, err)
+	}
+
+	const minMajor, minMinor = 3, 35
+	if major < minMajor || (major == minMajor && minor < minMinor) {
+		return fmt.Errorf("SQLite version %s is older than required 3.35.0 (needed for ALTER TABLE DROP COLUMN in migrations)", version)
+	}
+
+	logging.Debug("SQLite version check passed", "version", version, "major", major, "minor", minor, "patch", patch)
+	return nil
+}
+
+func parseSQLiteVersion(version string) (major, minor, patch int, err error) {
+	parts := strings.Split(version, ".")
+	if len(parts) < 2 {
+		return 0, 0, 0, fmt.Errorf("invalid version format")
+	}
+
+	if _, err := fmt.Sscanf(parts[0], "%d", &major); err != nil {
+		return 0, 0, 0, err
+	}
+	if _, err := fmt.Sscanf(parts[1], "%d", &minor); err != nil {
+		return 0, 0, 0, err
+	}
+	if len(parts) >= 3 {
+		fmt.Sscanf(parts[2], "%d", &patch)
+	}
+	return major, minor, patch, nil
 }
 
 func CheckPassword(password, hash string) bool {
@@ -116,14 +160,31 @@ func CheckPassword(password, hash string) bool {
 }
 
 func InitSchema(ctx context.Context, db *sqlx.DB, dialect Dialect, migrationPath string) error {
+	path := migrationPathForDialect(migrationPath, dialect)
 	switch dialect {
 	case DialectPostgres:
-		return initPostgresSchema(ctx, db, migrationPath)
+		return initPostgresSchema(ctx, db, path)
 	case DialectSQLite:
-		return initSQLiteSchema(ctx, db, migrationPath)
+		return initSQLiteSchema(ctx, db, path)
 	default:
-		return initSQLiteSchema(ctx, db, migrationPath)
+		return initSQLiteSchema(ctx, db, path)
 	}
+}
+
+func migrationPathForDialect(migrationPath string, dialect Dialect) string {
+	if migrationPath == "" {
+		return ""
+	}
+	const filePrefix = "file://"
+	clean := migrationPath
+	if strings.HasPrefix(migrationPath, filePrefix) {
+		clean = migrationPath[len(filePrefix):]
+	}
+	candidate := filepath.Join(clean, string(dialect))
+	if _, err := os.Stat(candidate); err == nil {
+		return filePrefix + candidate
+	}
+	return migrationPath
 }
 
 func initPostgresSchema(ctx context.Context, db *sqlx.DB, migrationPath string) error {
@@ -141,7 +202,7 @@ func initPostgresSchema(ctx context.Context, db *sqlx.DB, migrationPath string) 
 		return fmt.Errorf("error running PostgreSQL migrations: %w", err)
 	}
 
-	slog.Info("PostgreSQL schema initialized successfully")
+	logging.Info("PostgreSQL schema initialized successfully")
 	return nil
 }
 
@@ -160,6 +221,6 @@ func initSQLiteSchema(ctx context.Context, db *sqlx.DB, migrationPath string) er
 		return fmt.Errorf("error running SQLite migrations: %w", err)
 	}
 
-	slog.Info("SQLite schema initialized successfully")
+	logging.Info("SQLite schema initialized successfully")
 	return nil
 }

@@ -64,12 +64,15 @@ func TestGenerateCertificate(t *testing.T) {
 		t.Errorf("certificate IPAddresses = %v, want at least 2 IPs (127.0.0.1, ::1)", cert.IPAddresses)
 	}
 
-	if cert.NotBefore.After(time.Now()) {
-		t.Error("certificate NotBefore is in the future")
+	now := time.Now()
+	expectedExpiry := now.Add(365 * 24 * time.Hour)
+	tolerance := 5 * time.Second
+
+	if cert.NotBefore.After(now.Add(tolerance)) {
+		t.Errorf("certificate NotBefore %v is too far in the future", cert.NotBefore)
 	}
-	expectedExpiry := time.Now().Add(365 * 24 * time.Hour)
-	if cert.NotAfter.Before(expectedExpiry.Add(-time.Hour)) || cert.NotAfter.After(expectedExpiry.Add(time.Hour)) {
-		t.Errorf("certificate NotAfter = %v, want ~%v", cert.NotAfter, expectedExpiry)
+	if cert.NotAfter.Before(expectedExpiry.Add(-tolerance)) || cert.NotAfter.After(expectedExpiry.Add(tolerance)) {
+		t.Errorf("certificate NotAfter = %v, want within %v of %v", cert.NotAfter, tolerance, expectedExpiry)
 	}
 
 	keyBlock, _ := pem.Decode(keyPEM)
@@ -152,11 +155,20 @@ func TestGenerateSelfSignedCertsDifferentDirectories(t *testing.T) {
 
 func TestGenerateSelfSignedCertsCurrentDirectory(t *testing.T) {
 	tempDir := t.TempDir()
-	origDir, _ := os.Getwd()
-	defer os.Chdir(origDir)
-	os.Chdir(tempDir)
+	origDir, err := os.Getwd()
+	if err != nil {
+		t.Fatalf("failed to get current working directory: %v", err)
+	}
+	defer func() {
+		if err := os.Chdir(origDir); err != nil {
+			t.Fatalf("failed to restore working directory: %v", err)
+		}
+	}()
+	if err := os.Chdir(tempDir); err != nil {
+		t.Fatalf("failed to change to temp directory: %v", err)
+	}
 
-	err := generateSelfSignedCerts("server.crt", "server.key")
+	err = generateSelfSignedCerts("server.crt", "server.key")
 	if err != nil {
 		t.Fatalf("generateSelfSignedCerts() in current directory error = %v", err)
 	}

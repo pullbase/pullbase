@@ -3,9 +3,9 @@ package rollback
 import (
 	"context"
 	"fmt"
-	"log/slog"
 	"time"
 
+	"github.com/pullbase/pullbase/server/pkg/logging"
 	"github.com/pullbase/pullbase/server/pkg/models"
 )
 
@@ -35,10 +35,10 @@ type RollbackService interface {
 type Service struct {
 	repo       Repository
 	gitMonitor GitMonitor
-	logger     *slog.Logger
+	logger     *logging.Logger
 }
 
-func NewService(repo Repository, gitMonitor GitMonitor, logger *slog.Logger) *Service {
+func NewService(repo Repository, gitMonitor GitMonitor, logger *logging.Logger) *Service {
 	return &Service{
 		repo:       repo,
 		gitMonitor: gitMonitor,

@@ -3,7 +3,6 @@ package server
 import (
 	"context"
 	"encoding/json"
-	"log/slog"
 	"net"
 	"net/http"
 	"slices"
@@ -13,8 +12,8 @@ import (
 
 	"github.com/pullbase/pullbase/server/pkg/apierrors"
 	"github.com/pullbase/pullbase/server/pkg/auth"
-	"github.com/pullbase/pullbase/server/pkg/csrf"
 	"github.com/pullbase/pullbase/server/pkg/database"
+	"github.com/pullbase/pullbase/server/pkg/logging"
 	"github.com/pullbase/pullbase/server/pkg/models"
 	"github.com/pullbase/pullbase/server/pkg/notifications"
 )
@@ -64,12 +63,11 @@ type InstallationTokenProvider interface {
 type API struct {
 	Repo                  *database.Repository
 	Auth                  *auth.Service
-	CSRF                  *csrf.Manager
 	WebhookHandlers       *WebhookHandlers
 	RollbackHandlers      *RollbackHandlers
 	TokenProvider         InstallationTokenProvider
 	Notifications         *notifications.Service
-	Logger                *slog.Logger
+	Logger                *logging.Logger
 	gitTokenMu            sync.Mutex
 	gitTokenCooldownUntil map[string]time.Time
 	gitTokenBackoff       map[string]time.Duration
@@ -82,11 +80,11 @@ type API struct {
 	bootstrapSecretPath string
 }
 
-func (a *API) log() *slog.Logger {
+func (a *API) log() *logging.Logger {
 	if a.Logger != nil {
 		return a.Logger
 	}
-	return slog.Default()
+	return logging.Default()
 }
 
 // ErrorResponse defines the structure for API error responses
@@ -267,7 +265,7 @@ func (a *API) ReadinessHandler(w http.ResponseWriter, r *http.Request) {
 func requireRole(r *http.Request, allowedRoles ...string) (*auth.Claims, bool) {
 	claims, ok := GetUserClaims(r.Context())
 	if !ok {
-		slog.Error("claims not found in context for role check")
+		logging.Error("claims not found in context for role check")
 		return nil, false
 	}
 
@@ -275,7 +273,7 @@ func requireRole(r *http.Request, allowedRoles ...string) (*auth.Claims, bool) {
 		return claims, true
 	}
 
-	slog.Warn("user attempted action without required role",
+	logging.Warn("user attempted action without required role",
 		"username", claims.Username, "user_id", claims.UserID, "role", claims.Role, "required_roles", allowedRoles)
 	return claims, false
 }

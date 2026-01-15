@@ -17,11 +17,11 @@ import (
 	"time"
 
 	"github.com/pullbase/pullbase/server/pkg/gitmonitor"
+	"github.com/pullbase/pullbase/server/pkg/logging"
 	"github.com/pullbase/pullbase/server/pkg/models"
 	server "github.com/pullbase/pullbase/server/pkg/server"
 	"github.com/pullbase/pullbase/server/pkg/testutil"
 	"github.com/stretchr/testify/require"
-	"log/slog"
 )
 
 type recordingServerRepo struct {
@@ -50,7 +50,7 @@ func setupWebhookHandler(t *testing.T) (*server.WebhookHandlers, *recordingServe
 		encryptionKey[i] = byte(i)
 	}
 
-	logger := slog.New(slog.NewTextHandler(io.Discard, nil))
+	logger := logging.NewLogger(logging.Options{Format: "text", Output: io.Discard})
 
 	recordingRepo := &recordingServerRepo{}
 	router := gitmonitor.NewWebhookRouter(logger, nil)

@@ -5,14 +5,14 @@ import (
 	"database/sql"
 	"errors"
 	"fmt"
-	"log/slog"
 	"strings"
 	"time"
 
 	"github.com/google/uuid"
-	"github.com/pullbase/pullbase/server/pkg/models"
 	"github.com/jmoiron/sqlx"
 	"github.com/lib/pq"
+	"github.com/pullbase/pullbase/server/pkg/logging"
+	"github.com/pullbase/pullbase/server/pkg/models"
 	"golang.org/x/crypto/bcrypt"
 )
 
@@ -55,9 +55,11 @@ func (r *Repository) SupportsReturning() bool {
 	return r.dialect.SupportsReturning()
 }
 
+var BcryptCost = 14
+
 // hashPassword securely hashes a password using bcrypt
 func hashPassword(password string) (string, error) {
-	bytes, err := bcrypt.GenerateFromPassword([]byte(password), 14)
+	bytes, err := bcrypt.GenerateFromPassword([]byte(password), BcryptCost)
 	if err != nil {
 		return "", err
 	}
@@ -171,7 +173,7 @@ func (r *Repository) CreateServerWithID(ctx context.Context, serverID, name stri
 		}
 		return nil, fmt.Errorf("failed to create server '%s': %w", name, err)
 	}
-	slog.Info("server created successfully", "name", server.Name, "id", server.ID, "environment_id", environmentID)
+	logging.Info("server created successfully", "name", server.Name, "id", server.ID, "environment_id", environmentID)
 	return &server, nil
 }
 
@@ -227,14 +229,14 @@ func (r *Repository) UpdateTargetCommitHash(ctx context.Context, serverName, com
 
 	rowsAffected, err := result.RowsAffected()
 	if err != nil {
-		slog.Warn("error checking affected rows after updating commit hash", "server_name", serverName, "error", err)
+		logging.Warn("error checking affected rows after updating commit hash", "server_name", serverName, "error", err)
 	}
 
 	if rowsAffected == 0 {
 		return fmt.Errorf("server name '%s' not found for updating commit hash: %w", serverName, ErrNotFound)
 	}
 
-	slog.Debug("updated target commit hash", "server_name", serverName, "commit_hash", commitHash)
+	logging.Debug("updated target commit hash", "server_name", serverName, "commit_hash", commitHash)
 	return nil
 }
 
@@ -291,6 +293,10 @@ func (r *Repository) CreateAgentStatus(ctx context.Context, status *models.Agent
 		}
 	}
 
+	if err := status.PrepareDriftDetailsRaw(); err != nil {
+		return fmt.Errorf("error preparing drift details for server %s: %w", status.ServerID, err)
+	}
+
 	query := `
         INSERT INTO agent_status
           (server_id, commit_hash, is_drifted, status, error_message, agent_version, drift_details, agent_timestamp)
@@ -329,6 +335,9 @@ func (r *Repository) GetLatestAgentStatus(ctx context.Context, serverID string) 
 		}
 		return nil, fmt.Errorf("error getting latest agent status for server %s: %w", serverID, err)
 	}
+	if err := status.LoadDriftDetails(); err != nil {
+		return nil, fmt.Errorf("error loading drift details for server %s: %w", serverID, err)
+	}
 	return status, nil
 }
 
@@ -344,6 +353,11 @@ func (r *Repository) GetAgentStatusHistory(ctx context.Context, serverID string,
 	err := r.DB.SelectContext(ctx, &statuses, query, serverID, limit, offset)
 	if err != nil {
 		return nil, fmt.Errorf("error getting agent status history for server %s: %w", serverID, err)
+	}
+	for i := range statuses {
+		if err := statuses[i].LoadDriftDetails(); err != nil {
+			return nil, fmt.Errorf("error loading drift details for server %s: %w", serverID, err)
+		}
 	}
 	return statuses, nil
 }
@@ -557,7 +571,7 @@ func (r *Repository) UpdateUser(ctx context.Context, user *models.User) error {
 	}
 	rowsAffected, err := result.RowsAffected()
 	if err != nil {
-		slog.Warn("could not get rows affected after updating user", "user_id", user.ID, "error", err)
+		logging.Warn("could not get rows affected after updating user", "user_id", user.ID, "error", err)
 	} else if rowsAffected == 0 {
 		var exists bool
 		checkQuery := `SELECT EXISTS(SELECT 1 FROM users WHERE id = $1)`
@@ -583,7 +597,7 @@ func (r *Repository) UpdateUserPassword(ctx context.Context, userID int, newPass
 	}
 	rowsAffected, err := result.RowsAffected()
 	if err != nil {
-		slog.Warn("could not get rows affected after updating password", "user_id", userID, "error", err)
+		logging.Warn("could not get rows affected after updating password", "user_id", userID, "error", err)
 	} else if rowsAffected == 0 {
 		var exists bool
 		checkQuery := `SELECT EXISTS(SELECT 1 FROM users WHERE id = $1)`
@@ -672,7 +686,7 @@ func (r *Repository) UpdateServer(ctx context.Context, server *models.Server) er
 	}
 	rowsAffected, err := result.RowsAffected()
 	if err != nil {
-		slog.Warn("could not get rows affected after updating server", "server_id", server.ID, "error", err)
+		logging.Warn("could not get rows affected after updating server", "server_id", server.ID, "error", err)
 	} else if rowsAffected == 0 {
 		return fmt.Errorf("server with id %s not found for update: %w", server.ID, ErrNotFound)
 	}
@@ -1401,25 +1415,26 @@ type ExpiringToken struct {
 
 // GetExpiringTokens retrieves all active tokens expiring within the specified number of days
 func (r *Repository) GetExpiringTokens(ctx context.Context, days int) ([]*ExpiringToken, error) {
+	now := time.Now()
+	cutoff := now.Add(time.Duration(days) * 24 * time.Hour)
 	query := `
 		SELECT 
 			t.id, t.token_hash, t.server_id, t.description, t.created_at, 
 			t.expires_at, t.last_used_at, t.is_active, t.created_by_user_id,
 			s.name as server_name,
 			s.environment_id,
-			COALESCE(e.name, '') as environment_name,
-			EXTRACT(DAY FROM (t.expires_at - CURRENT_TIMESTAMP))::int as days_until_expiry
+			COALESCE(e.name, '') as environment_name
 		FROM agent_tokens t
 		INNER JOIN servers s ON t.server_id = s.id
 		LEFT JOIN environments e ON s.environment_id = e.id
 		WHERE t.is_active = TRUE 
 			AND t.expires_at IS NOT NULL
 			AND t.expires_at > CURRENT_TIMESTAMP
-			AND t.expires_at <= CURRENT_TIMESTAMP + ($1 || ' days')::interval
+			AND t.expires_at <= ?
 		ORDER BY t.expires_at ASC
 	`
 
-	rows, err := r.DB.QueryxContext(ctx, query, days)
+	rows, err := r.DB.QueryxContext(ctx, r.Rebind(query), cutoff)
 	if err != nil {
 		return nil, fmt.Errorf("failed to get expiring tokens: %w", err)
 	}
@@ -1431,6 +1446,9 @@ func (r *Repository) GetExpiringTokens(ctx context.Context, days int) ([]*Expiri
 		err := rows.StructScan(&token)
 		if err != nil {
 			return nil, fmt.Errorf("failed to scan expiring token: %w", err)
+		}
+		if token.ExpiresAt != nil {
+			token.DaysUntilExpiry = int(token.ExpiresAt.Sub(now).Hours() / 24)
 		}
 		tokens = append(tokens, &token)
 	}
@@ -1444,17 +1462,18 @@ func (r *Repository) GetExpiringTokens(ctx context.Context, days int) ([]*Expiri
 
 // CountExpiringTokens returns the count of tokens expiring within the specified number of days
 func (r *Repository) CountExpiringTokens(ctx context.Context, days int) (int, error) {
+	cutoff := time.Now().Add(time.Duration(days) * 24 * time.Hour)
 	query := `
 		SELECT COUNT(*)
 		FROM agent_tokens
 		WHERE is_active = TRUE 
 			AND expires_at IS NOT NULL
 			AND expires_at > CURRENT_TIMESTAMP
-			AND expires_at <= CURRENT_TIMESTAMP + ($1 || ' days')::interval
+			AND expires_at <= ?
 	`
 
 	var count int
-	err := r.DB.GetContext(ctx, &count, query, days)
+	err := r.DB.GetContext(ctx, &count, r.Rebind(query), cutoff)
 	if err != nil {
 		return 0, fmt.Errorf("failed to count expiring tokens: %w", err)
 	}

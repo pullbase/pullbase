@@ -12,7 +12,6 @@ import (
 	"strconv"
 	"testing"
 
-	"log/slog"
 	"os"
 
 	"github.com/go-chi/chi/v5"
@@ -20,6 +19,7 @@ import (
 	"github.com/stretchr/testify/mock"
 	"github.com/stretchr/testify/require"
 
+	"github.com/pullbase/pullbase/server/pkg/logging"
 	"github.com/pullbase/pullbase/server/pkg/models"
 	"github.com/pullbase/pullbase/server/pkg/rollback"
 	"github.com/pullbase/pullbase/server/pkg/server"
@@ -37,7 +37,7 @@ func TestRollbackIntegration(t *testing.T) {
 
 	env := tdb.CreateTestEnvironment("test-env", "https://github.com/test/config.git")
 
-	logger := slog.New(slog.NewTextHandler(os.Stdout, nil))
+	logger := logging.NewLogger(logging.Options{Format: "text", Output: os.Stdout})
 	mockGit := &MockGitMonitor{}
 	rollbackService := rollback.NewService(mainRepo, mockGit, logger)
 	rollbackHandlers := server.NewRollbackHandlers(rollbackService)
@@ -178,5 +178,3 @@ func (m *MockGitMonitor) CheckoutCommit(ctx context.Context, repoURL, commit str
 	args := m.Called(ctx, repoURL, commit)
 	return args.Error(0)
 }
-
-

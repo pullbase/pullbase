@@ -128,7 +128,7 @@ func main() {
 
 	// Validate URL has a scheme
 	if !strings.HasPrefix(centralURL, "http://") && !strings.HasPrefix(centralURL, "https://") {
-		log.Printf("WARN: centralURL lacks scheme, prepending https://")
+		log.Printf("WARN: centralURL lacks scheme, prepending https:// (original: %s)", centralURL)
 		centralURL = "https://" + centralURL
 	}
 

@@ -1275,12 +1275,12 @@ func (api *API) renderInstallScript(data installScriptData) string {
 }
 
 type DriftDetailsResponse struct {
-	ServerID     string          `json:"server_id"`
-	ServerName   string          `json:"server_name"`
-	IsDrifted    bool            `json:"is_drifted"`
-	DriftDetails json.RawMessage `json:"drift_details,omitempty"`
-	DetectedAt   *time.Time      `json:"detected_at,omitempty"`
-	CommitHash   string          `json:"commit_hash,omitempty"`
+	ServerID     string               `json:"server_id"`
+	ServerName   string               `json:"server_name"`
+	IsDrifted    bool                 `json:"is_drifted"`
+	DriftDetails *models.DriftDetails `json:"drift_details,omitempty"`
+	DetectedAt   *time.Time           `json:"detected_at,omitempty"`
+	CommitHash   string               `json:"commit_hash,omitempty"`
 }
 
 // GetServerDriftHandler retrieves drift details for a server.
@@ -1339,15 +1339,12 @@ func (api *API) GetServerDriftHandler(w http.ResponseWriter, r *http.Request) {
 	}
 
 	response := DriftDetailsResponse{
-		ServerID:   serverID,
-		ServerName: server.Name,
-		IsDrifted:  latestStatus.IsDrifted,
-		CommitHash: latestStatus.CommitHash,
-		DetectedAt: &latestStatus.Timestamp,
-	}
-
-	if latestStatus.DriftDetails != nil {
-		response.DriftDetails = *latestStatus.DriftDetails
+		ServerID:     serverID,
+		ServerName:   server.Name,
+		IsDrifted:    latestStatus.IsDrifted,
+		CommitHash:   latestStatus.CommitHash,
+		DetectedAt:   &latestStatus.Timestamp,
+		DriftDetails: latestStatus.DriftDetails,
 	}
 
 	writeJSON(w, http.StatusOK, response)

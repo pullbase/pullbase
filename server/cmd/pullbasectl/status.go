@@ -1,6 +1,7 @@
 package main
 
 import (
+	"context"
 	"encoding/json"
 	"errors"
 	"flag"
@@ -8,7 +9,9 @@ import (
 	"net/http"
 	"net/url"
 	"os"
+	"os/signal"
 	"strings"
+	"syscall"
 	"text/tabwriter"
 	"time"
 )
@@ -111,7 +114,7 @@ func runStatus(args []string) error {
 }
 
 func runStatusOnce(client *http.Client, token, targetURL, serverID string, environmentID int64, all bool, format outputFormat) error {
-	status, err := fetchStatus(client, token, targetURL, serverID, environmentID, all)
+	status, err := fetchStatus(client, token, targetURL, serverID, environmentID)
 	if err != nil {
 		return err
 	}
@@ -119,12 +122,32 @@ func runStatusOnce(client *http.Client, token, targetURL, serverID string, envir
 }
 
 func runStatusWatch(client *http.Client, token, targetURL, serverID string, environmentID int64, all bool, format outputFormat, interval int) error {
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
+
+	sigCh := make(chan os.Signal, 1)
+	signal.Notify(sigCh, syscall.SIGINT, syscall.SIGTERM)
+	go func() {
+		<-sigCh
+		cancel()
+	}()
+
 	fmt.Printf("Watching status (refresh every %ds). Press Ctrl+C to stop.\n\n", interval)
 
+	ticker := time.NewTicker(time.Duration(interval) * time.Second)
+	defer ticker.Stop()
+
 	for {
+		select {
+		case <-ctx.Done():
+			fmt.Println("\nStopped watching.")
+			return nil
+		default:
+		}
+
 		fmt.Print("\033[H\033[2J")
 
-		status, err := fetchStatus(client, token, targetURL, serverID, environmentID, all)
+		status, err := fetchStatus(client, token, targetURL, serverID, environmentID)
 		if err != nil {
 			fmt.Fprintf(os.Stderr, "Error fetching status: %v\n", err)
 		} else {
@@ -134,11 +157,17 @@ func runStatusWatch(client *http.Client, token, targetURL, serverID string, envi
 		}
 
 		fmt.Printf("\nLast updated: %s (refresh every %ds)\n", time.Now().Format(time.RFC3339), interval)
-		time.Sleep(time.Duration(interval) * time.Second)
+
+		select {
+		case <-ctx.Done():
+			fmt.Println("\nStopped watching.")
+			return nil
+		case <-ticker.C:
+		}
 	}
 }
 
-func fetchStatus(client *http.Client, token, targetURL, serverID string, environmentID int64, all bool) (*fleetStatusResponse, error) {
+func fetchStatus(client *http.Client, token, targetURL, serverID string, environmentID int64) (*fleetStatusResponse, error) {
 	var requestURL string
 	values := url.Values{}
 

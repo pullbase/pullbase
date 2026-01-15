@@ -6,7 +6,7 @@ import (
 	"crypto/subtle"
 	"encoding/json"
 	"errors"
-	"log/slog"
+	"net"
 	"net/http"
 	"os"
 	"regexp"
@@ -20,12 +20,12 @@ import (
 	"github.com/pullbase/pullbase/server/pkg/apierrors"
 	"github.com/pullbase/pullbase/server/pkg/auth"
 	"github.com/pullbase/pullbase/server/pkg/database"
+	"github.com/pullbase/pullbase/server/pkg/logging"
 	"github.com/pullbase/pullbase/server/pkg/models"
 )
 
 const (
-	bootstrapAttemptCooldown   = 2 * time.Second
-	bootstrapPasswordMinLength = 12
+	bootstrapAttemptCooldown = 2 * time.Second
 )
 
 var bootstrapUsernamePattern = regexp.MustCompile(`^[a-zA-Z0-9_.-]{3,64}$`)
@@ -35,7 +35,7 @@ type LoginRequest struct {
 	Username      string `json:"username"`
 	Password      string `json:"password"`
 	EnvironmentID *int64 `json:"environment_id,omitempty"`
-	ServerID      string `json:"server_id,omitempty"` // For backward compatibility
+	ServerID      string `json:"server_id,omitempty"`
 }
 
 // LoginResponse defines the structure for successful login responses
@@ -79,7 +79,6 @@ type DeleteUserRequest struct {
 	ConfirmUsername string `json:"confirm_username"`
 }
 
-// UserSummary provides basic user info without sensitive details
 type UserSummary struct {
 	ID       int    `json:"id"`
 	Username string `json:"username"`
@@ -92,7 +91,6 @@ var allowedUserRoles = []string{
 	models.RoleViewer,
 }
 
-// EnableBootstrap stores the hashed bootstrap secret and makes the bootstrap endpoint available.
 func (a *API) EnableBootstrap(secret, secretPath string) {
 	if a == nil {
 		return
@@ -111,7 +109,6 @@ func (a *API) EnableBootstrap(secret, secretPath string) {
 	a.bootstrapAttempts = make(map[string]time.Time)
 }
 
-// DisableBootstrap clears any bootstrap credentials and disables the endpoint.
 func (a *API) DisableBootstrap() {
 	if a == nil {
 		return
@@ -209,7 +206,6 @@ func (a *API) LoginHandler(w http.ResponseWriter, r *http.Request) {
 	if req.EnvironmentID != nil {
 		environmentID = req.EnvironmentID
 	} else if req.ServerID != "" {
-		// Backward compatibility: look up environment ID from server ID
 		serverEnvID, err := a.Repo.GetServerEnvironmentID(r.Context(), req.ServerID)
 		if err != nil {
 			if errors.Is(err, database.ErrNotFound) {
@@ -221,7 +217,6 @@ func (a *API) LoginHandler(w http.ResponseWriter, r *http.Request) {
 			return
 		}
 
-		// Require servers to have an environment for agent authentication
 		if serverEnvID == nil {
 			a.log().Warn("server not assigned to any environment", "server_id", req.ServerID)
 			writeAPIError(w, apierrors.BadRequestf("Server %s must be assigned to an environment for agent authentication", req.ServerID))
@@ -231,9 +226,7 @@ func (a *API) LoginHandler(w http.ResponseWriter, r *http.Request) {
 		environmentID = serverEnvID
 	}
 
-	// Generate appropriate token based on environment
 	if environmentID != nil {
-		// Validate environment exists
 		_, err := a.Repo.GetEnvironment(r.Context(), *environmentID)
 		if err != nil {
 			if errors.Is(err, database.ErrNotFound) {
@@ -260,6 +253,7 @@ func (a *API) LoginHandler(w http.ResponseWriter, r *http.Request) {
 	} else {
 		tokenString, err = a.Auth.GenerateToken(user)
 		if err != nil {
+			a.log().Error("failed to generate token", "username", req.Username, "error", err)
 			writeAPIError(w, apierrors.Internal("Failed to generate authentication token"))
 			return
 		}
@@ -316,7 +310,7 @@ func (a *API) BootstrapAdminHandler(w http.ResponseWriter, r *http.Request) {
 	a.bootstrapMu.Lock()
 	if !a.bootstrapEnabled || len(a.bootstrapSecretHash) == 0 {
 		a.bootstrapMu.Unlock()
-		writeError(w, http.StatusGone, "Admin bootstrap is not available")
+		writeAPIError(w, apierrors.Gone("Admin bootstrap is not available"))
 		return
 	}
 
@@ -353,8 +347,8 @@ func (a *API) BootstrapAdminHandler(w http.ResponseWriter, r *http.Request) {
 		writeAPIError(w, apierrors.Validation("Username must be 3-64 characters and contain only letters, numbers, '.', '_' or '-'"))
 		return
 	}
-	if utf8.RuneCountInString(req.Password) < bootstrapPasswordMinLength {
-		writeAPIError(w, apierrors.Validationf("Password must be at least %d characters long", bootstrapPasswordMinLength))
+	if utf8.RuneCountInString(req.Password) < auth.BootstrapPasswordMinLength {
+		writeAPIError(w, apierrors.Validationf("Password must be at least %d characters long", auth.BootstrapPasswordMinLength))
 		return
 	}
 
@@ -372,7 +366,7 @@ func (a *API) BootstrapAdminHandler(w http.ResponseWriter, r *http.Request) {
 	}
 	if hasAdmin {
 		a.DisableBootstrap()
-		writeError(w, http.StatusGone, "Admin bootstrap has already been completed")
+		writeAPIError(w, apierrors.Gone("Admin bootstrap has already been completed"))
 		return
 	}
 
@@ -435,7 +429,6 @@ func (a *API) GetCurrentUserHandler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	// Return the relevant user info from claims
 	resp := UserSummary{
 		ID:       claims.UserID,
 		Username: claims.Username,
@@ -482,8 +475,8 @@ func (api *API) CreateUserHandler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	if utf8.RuneCountInString(req.Password) < bootstrapPasswordMinLength {
-		writeAPIError(w, apierrors.Validationf("Password must be at least %d characters long", bootstrapPasswordMinLength))
+	if utf8.RuneCountInString(req.Password) < auth.BootstrapPasswordMinLength {
+		writeAPIError(w, apierrors.Validationf("Password must be at least %d characters long", auth.BootstrapPasswordMinLength))
 		return
 	}
 
@@ -549,7 +542,7 @@ func (api *API) CreateUserHandler(w http.ResponseWriter, r *http.Request) {
 func (api *API) ListUsersHandler(w http.ResponseWriter, r *http.Request) {
 	_, authorized := requireRole(r, models.RoleAdmin)
 	if !authorized {
-		writeError(w, http.StatusForbidden, "Permission denied to list users")
+		writeAPIError(w, apierrors.Forbidden("Permission denied to list users"))
 		return
 	}
 
@@ -564,7 +557,7 @@ func (api *API) ListUsersHandler(w http.ResponseWriter, r *http.Request) {
 				limit = parsed
 			}
 		} else {
-			writeError(w, http.StatusBadRequest, "limit must be a positive integer")
+			writeAPIError(w, apierrors.BadRequest("limit must be a positive integer"))
 			return
 		}
 	}
@@ -574,7 +567,7 @@ func (api *API) ListUsersHandler(w http.ResponseWriter, r *http.Request) {
 		if parsed, err := strconv.Atoi(rawOffset); err == nil && parsed >= 0 {
 			offset = parsed
 		} else {
-			writeError(w, http.StatusBadRequest, "offset must be zero or a positive integer")
+			writeAPIError(w, apierrors.BadRequest("offset must be zero or a positive integer"))
 			return
 		}
 	}
@@ -582,7 +575,7 @@ func (api *API) ListUsersHandler(w http.ResponseWriter, r *http.Request) {
 	var roleFilter string
 	if rawRole := strings.TrimSpace(query.Get("role")); rawRole != "" {
 		if !slices.Contains(allowedUserRoles, rawRole) {
-			writeError(w, http.StatusBadRequest, "role must be one of: admin, user, viewer")
+			writeAPIError(w, apierrors.BadRequest("role must be one of: admin, user, viewer"))
 			return
 		}
 		roleFilter = rawRole
@@ -591,7 +584,7 @@ func (api *API) ListUsersHandler(w http.ResponseWriter, r *http.Request) {
 	users, total, err := api.Repo.ListUsers(r.Context(), limit, offset, roleFilter)
 	if err != nil {
 		api.log().Error("failed to list users", "error", err)
-		writeError(w, http.StatusInternalServerError, "Failed to list users")
+		writeAPIError(w, apierrors.Internal("Failed to list users"))
 		return
 	}
 
@@ -638,47 +631,47 @@ func (api *API) ListUsersHandler(w http.ResponseWriter, r *http.Request) {
 func (api *API) DeleteUserHandler(w http.ResponseWriter, r *http.Request) {
 	claims, authorized := requireRole(r, models.RoleAdmin)
 	if !authorized {
-		writeError(w, http.StatusForbidden, "Permission denied to delete user")
+		writeAPIError(w, apierrors.Forbidden("Permission denied to delete user"))
 		return
 	}
 
 	userIDParam := chi.URLParam(r, "userID")
 	userID, err := strconv.Atoi(strings.TrimSpace(userIDParam))
 	if err != nil || userID <= 0 {
-		writeError(w, http.StatusBadRequest, "Invalid user ID")
+		writeAPIError(w, apierrors.BadRequest("Invalid user ID"))
 		return
 	}
 
 	if claims.UserID == userID {
-		writeError(w, http.StatusBadRequest, "You cannot delete your own account")
+		writeAPIError(w, apierrors.BadRequest("You cannot delete your own account"))
 		return
 	}
 
 	var req DeleteUserRequest
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
-		writeError(w, http.StatusBadRequest, "Invalid request body")
+		writeAPIError(w, apierrors.BadRequest("Invalid request body"))
 		return
 	}
 
 	confirmUsername := strings.TrimSpace(req.ConfirmUsername)
 	if confirmUsername == "" {
-		writeError(w, http.StatusBadRequest, "confirm_username is required")
+		writeAPIError(w, apierrors.BadRequest("confirm_username is required"))
 		return
 	}
 
 	targetUser, err := api.Repo.GetUserByID(r.Context(), userID)
 	if err != nil {
 		if errors.Is(err, database.ErrNotFound) {
-			writeError(w, http.StatusNotFound, "User not found")
+			writeAPIError(w, apierrors.NotFoundf("User not found"))
 			return
 		}
 		api.log().Error("failed to fetch user for deletion", "user_id", userID, "error", err)
-		writeError(w, http.StatusInternalServerError, "Failed to load user")
+		writeAPIError(w, apierrors.Internal("Failed to load user"))
 		return
 	}
 
 	if targetUser.Username != confirmUsername {
-		writeError(w, http.StatusBadRequest, "Confirmation does not match username")
+		writeAPIError(w, apierrors.BadRequest("Confirmation does not match username"))
 		return
 	}
 
@@ -686,22 +679,22 @@ func (api *API) DeleteUserHandler(w http.ResponseWriter, r *http.Request) {
 		_, totalAdmins, err := api.Repo.ListUsers(r.Context(), 2, 0, models.RoleAdmin)
 		if err != nil {
 			api.log().Error("failed to verify admin count before deletion", "error", err)
-			writeError(w, http.StatusInternalServerError, "Failed to verify admin count")
+			writeAPIError(w, apierrors.Internal("Failed to verify admin count"))
 			return
 		}
 		if totalAdmins <= 1 {
-			writeError(w, http.StatusBadRequest, "Cannot delete the only active admin user")
+			writeAPIError(w, apierrors.BadRequest("Cannot delete the only active admin user"))
 			return
 		}
 	}
 
 	if err := api.Repo.DeleteUser(r.Context(), userID); err != nil {
 		if errors.Is(err, database.ErrNotFound) {
-			writeError(w, http.StatusNotFound, "User not found")
+			writeAPIError(w, apierrors.NotFoundf("User not found"))
 			return
 		}
 		api.log().Error("failed to delete user", "user_id", userID, "error", err)
-		writeError(w, http.StatusInternalServerError, "Failed to delete user")
+		writeAPIError(w, apierrors.Internal("Failed to delete user"))
 		return
 	}
 
@@ -728,7 +721,7 @@ func AuthMiddleware(authService *auth.Service) func(http.Handler) http.Handler {
 				tokenString = cookie.Value
 				claims, err = authService.ValidateToken(tokenString)
 				if err != nil {
-					slog.Warn("invalid session_token cookie", "error", err)
+					logging.Warn("invalid session_token cookie", "error", err)
 
 					http.SetCookie(w, &http.Cookie{
 						Name:     "session_token",
@@ -737,7 +730,7 @@ func AuthMiddleware(authService *auth.Service) func(http.Handler) http.Handler {
 						Expires:  time.Unix(0, 0),
 						MaxAge:   -1,
 						HttpOnly: true,
-						Secure:   r.TLS != nil,
+						Secure:   isRequestSecure(r),
 						SameSite: http.SameSiteLaxMode,
 					})
 				}
@@ -747,23 +740,23 @@ func AuthMiddleware(authService *auth.Service) func(http.Handler) http.Handler {
 				authHeader := r.Header.Get("Authorization")
 				if authHeader == "" {
 					if errCookie == nil && cookie.Value != "" {
-						writeError(w, http.StatusUnauthorized, "Invalid session token")
+						writeAPIError(w, apierrors.Unauthorized("Invalid session token"))
 					} else {
-						writeError(w, http.StatusUnauthorized, "Authorization header or session cookie required")
+						writeAPIError(w, apierrors.Unauthorized("Authorization header or session cookie required"))
 					}
 					return
 				}
 
 				parts := strings.Split(authHeader, " ")
 				if len(parts) != 2 || strings.ToLower(parts[0]) != "bearer" {
-					writeError(w, http.StatusUnauthorized, "Invalid Authorization header format (must be Bearer token)")
+					writeAPIError(w, apierrors.Unauthorized("Invalid Authorization header format (must be Bearer token)"))
 					return
 				}
 				tokenString = parts[1]
 
 				claims, err = authService.ValidateToken(tokenString)
 				if err != nil {
-					writeError(w, http.StatusUnauthorized, "Invalid or expired token")
+					writeAPIError(w, apierrors.Unauthorized("Invalid or expired token"))
 					return
 				}
 			}
@@ -774,8 +767,25 @@ func AuthMiddleware(authService *auth.Service) func(http.Handler) http.Handler {
 	}
 }
 
-// GetUserClaims retrieves user claims from the request context.
-// Helper function for handlers to access user info.
+func isRequestSecure(r *http.Request) bool {
+	if r.TLS != nil {
+		return true
+	}
+	if isLoopbackRequest(r) && strings.EqualFold(r.Header.Get("X-Forwarded-Proto"), "https") {
+		return true
+	}
+	return false
+}
+
+func isLoopbackRequest(r *http.Request) bool {
+	host, _, err := net.SplitHostPort(r.RemoteAddr)
+	if err != nil {
+		host = r.RemoteAddr
+	}
+	ip := net.ParseIP(host)
+	return ip != nil && ip.IsLoopback()
+}
+
 func GetUserClaims(ctx context.Context) (*auth.Claims, bool) {
 	claims, ok := ctx.Value(UserClaimsKey).(*auth.Claims)
 	return claims, ok

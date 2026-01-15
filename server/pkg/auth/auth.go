@@ -11,6 +11,9 @@ import (
 	"github.com/pullbase/pullbase/server/pkg/models"
 )
 
+// BootstrapPasswordMinLength enforces the minimum length for bootstrap/admin passwords.
+const BootstrapPasswordMinLength = 12
+
 // Claims defines the structure of the JWT claims
 type Claims struct {
 	UserID        int    `json:"user_id"`

@@ -1,21 +1,8 @@
 {
     "swagger": "2.0",
     "info": {
-        "description": "GitOps for Servers - Git-driven configuration management for VMs and bare-metal servers.",
-        "title": "Pullbase API",
-        "termsOfService": "https://pullbase.io/terms",
-        "contact": {
-            "name": "Pullbase Support",
-            "url": "https://github.com/pullbase/pullbase"
-        },
-        "license": {
-            "name": "MIT",
-            "url": "https://opensource.org/licenses/MIT"
-        },
-        "version": "1.0"
+        "contact": {}
     },
-    "host": "localhost:8080",
-    "basePath": "/api/v1",
     "paths": {
         "/agent/git-token": {
             "get": {
@@ -2093,6 +2080,52 @@
                 }
             }
         },
+        "github_com_pullbase_pullbase_server_pkg_models.DriftDetails": {
+            "type": "object",
+            "properties": {
+                "files": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/github_com_pullbase_pullbase_server_pkg_models.DriftItem"
+                    }
+                },
+                "packages": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/github_com_pullbase_pullbase_server_pkg_models.DriftItem"
+                    }
+                },
+                "services": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/github_com_pullbase_pullbase_server_pkg_models.DriftItem"
+                    }
+                },
+                "summary": {
+                    "type": "string"
+                }
+            }
+        },
+        "github_com_pullbase_pullbase_server_pkg_models.DriftItem": {
+            "type": "object",
+            "properties": {
+                "actual": {
+                    "type": "string"
+                },
+                "expected": {
+                    "type": "string"
+                },
+                "message": {
+                    "type": "string"
+                },
+                "name": {
+                    "type": "string"
+                },
+                "type": {
+                    "type": "string"
+                }
+            }
+        },
         "github_com_pullbase_pullbase_server_pkg_models.GitProvider": {
             "type": "string",
             "enum": [
@@ -2257,10 +2290,7 @@
                     "type": "string"
                 },
                 "drift_details": {
-                    "type": "array",
-                    "items": {
-                        "type": "integer"
-                    }
+                    "$ref": "#/definitions/github_com_pullbase_pullbase_server_pkg_models.DriftDetails"
                 },
                 "error_message": {
                     "type": "string"
@@ -2465,10 +2495,7 @@
                     "type": "string"
                 },
                 "drift_details": {
-                    "type": "array",
-                    "items": {
-                        "type": "integer"
-                    }
+                    "$ref": "#/definitions/github_com_pullbase_pullbase_server_pkg_models.DriftDetails"
                 },
                 "is_drifted": {
                     "type": "boolean"
@@ -2679,20 +2706,6 @@
                     "type": "boolean"
                 }
             }
-        }
-    },
-    "securityDefinitions": {
-        "AgentAuth": {
-            "description": "Agent token generated when creating a server. Format: \"Bearer {token}\"",
-            "type": "apiKey",
-            "name": "Authorization",
-            "in": "header"
-        },
-        "BearerAuth": {
-            "description": "JWT token obtained from /api/v1/auth/login. Format: \"Bearer {token}\"",
-            "type": "apiKey",
-            "name": "Authorization",
-            "in": "header"
         }
     }
 }

@@ -7,12 +7,12 @@ import (
 	"crypto/rand"
 	"encoding/base64"
 	"fmt"
-	"log/slog"
 	"strings"
 	"sync"
 	"time"
 
 	"github.com/pullbase/pullbase/server/pkg/database"
+	"github.com/pullbase/pullbase/server/pkg/logging"
 	"github.com/pullbase/pullbase/server/pkg/models"
 	"github.com/pullbase/pullbase/server/pkg/rollback"
 )
@@ -21,7 +21,7 @@ import (
 type EnvironmentMonitor struct {
 	webhookManager  *WebhookManager
 	providers       map[Provider]GitProvider
-	logger          *slog.Logger
+	logger          *logging.Logger
 	encryptionKey   []byte
 	repo            *database.EnvironmentRepository
 	mainRepo        ServerRepository
@@ -52,7 +52,7 @@ func (em *EnvironmentMonitor) fetchInstallationToken(ctx context.Context, env *E
 // NewEnvironmentMonitor creates a new environment monitor
 func NewEnvironmentMonitor(
 	webhookManager *WebhookManager,
-	logger *slog.Logger,
+	logger *logging.Logger,
 	encryptionKey []byte,
 	repo *database.EnvironmentRepository,
 	mainRepo ServerRepository,

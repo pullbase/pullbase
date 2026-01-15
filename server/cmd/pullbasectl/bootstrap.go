@@ -11,6 +11,7 @@ import (
 	"strings"
 	"unicode/utf8"
 
+	"github.com/pullbase/pullbase/server/pkg/auth"
 	appconfig "github.com/pullbase/pullbase/server/pkg/config"
 	"golang.org/x/term"
 )
@@ -189,8 +190,8 @@ func runBootstrapWizard(args []string) error {
 		}
 		password = value
 	}
-	if utf8.RuneCountInString(password) < bootstrapPasswordMinLength {
-		return fmt.Errorf("admin password must be at least %d characters", bootstrapPasswordMinLength)
+	if utf8.RuneCountInString(password) < auth.BootstrapPasswordMinLength {
+		return fmt.Errorf("admin password must be at least %d characters", auth.BootstrapPasswordMinLength)
 	}
 
 	bootstrapResp, status, err := bootstrapAdmin(url, secret, username, password, client)

@@ -4,33 +4,31 @@ package testutil
 import (
 	"context"
 	"fmt"
-	"log/slog"
+	"path/filepath"
+	"runtime"
 	"sync"
 	"testing"
 	"time"
 
-	"github.com/pullbase/pullbase/server/pkg/database"
 	"github.com/jmoiron/sqlx"
+	"github.com/pullbase/pullbase/server/pkg/database"
+	"github.com/pullbase/pullbase/server/pkg/logging"
 	"github.com/testcontainers/testcontainers-go"
 	"github.com/testcontainers/testcontainers-go/modules/postgres"
-	"github.com/testcontainers/testcontainers-go/wait"
 )
 
 const (
-	// DefaultPostgresImage is the postgres image used in tests
 	DefaultPostgresImage = "docker.io/postgres:17-alpine"
 
-	// DefaultMigrationPath is the default path to migration files
-	DefaultMigrationPath = "file://../../migrations"
+	DefaultMigrationPath = "file://migrations"
 
-	// DefaultTestTimeout is the default timeout for test operations
 	DefaultTestTimeout = 3 * time.Minute
 
-	// DefaultStartupTimeout is the default timeout for container startup
 	DefaultStartupTimeout = 5 * time.Minute
+
+	FallbackSchemaVersion = 22
 )
 
-// TestDB represents a test database instance with cleanup capabilities
 type TestDB struct {
 	*sqlx.DB
 	Container testcontainers.Container
@@ -40,7 +38,6 @@ type TestDB struct {
 	t         testing.TB
 }
 
-// ContainerConfig holds configuration for the postgres container
 type ContainerConfig struct {
 	Database       string
 	Username       string
@@ -49,7 +46,6 @@ type ContainerConfig struct {
 	StartupTimeout time.Duration
 }
 
-// DefaultContainerConfig returns the default container configuration
 func DefaultContainerConfig() ContainerConfig {
 	return ContainerConfig{
 		Database:       "testdb",
@@ -60,7 +56,6 @@ func DefaultContainerConfig() ContainerConfig {
 	}
 }
 
-// StartPostgresContainer starts a PostgreSQL testcontainer and returns connection details
 func StartPostgresContainer(t testing.TB, config ContainerConfig) (*TestDB, error) {
 	t.Helper()
 	ctx := context.Background()
@@ -77,11 +72,7 @@ func StartPostgresContainer(t testing.TB, config ContainerConfig) (*TestDB, erro
 		postgres.WithDatabase(config.Database),
 		postgres.WithUsername(config.Username),
 		postgres.WithPassword(config.Password),
-		testcontainers.WithWaitStrategy(
-			wait.ForLog("database system is ready to accept connections").
-				WithOccurrence(2).
-				WithStartupTimeout(config.StartupTimeout),
-		),
+		postgres.BasicWaitStrategies(),
 	)
 	if err != nil {
 		return nil, fmt.Errorf("failed to start postgres container: %w", err)
@@ -109,10 +100,21 @@ func StartPostgresContainer(t testing.TB, config ContainerConfig) (*TestDB, erro
 		SSLMode:      "disable",
 	}
 
-	dbConn, dialect, err := database.New(dbConfig)
+	var dbConn *sqlx.DB
+	var dialect database.Dialect
+	maxRetries := 10
+	for i := 0; i < maxRetries; i++ {
+		dbConn, dialect, err = database.New(dbConfig)
+		if err == nil {
+			break
+		}
+		if i < maxRetries-1 {
+			time.Sleep(time.Duration(i+1) * 500 * time.Millisecond)
+		}
+	}
 	if err != nil {
 		container.Terminate(ctx)
-		return nil, fmt.Errorf("failed to connect to test database: %w", err)
+		return nil, fmt.Errorf("failed to connect to test database after %d retries: %w", maxRetries, err)
 	}
 
 	cleanup := func() {
@@ -120,7 +122,7 @@ func StartPostgresContainer(t testing.TB, config ContainerConfig) (*TestDB, erro
 			dbConn.Close()
 		}
 		if err := container.Terminate(ctx); err != nil {
-			slog.Warn("could not terminate container", "error", err)
+			logging.Warn("could not terminate container", "error", err)
 		}
 	}
 
@@ -133,26 +135,24 @@ func StartPostgresContainer(t testing.TB, config ContainerConfig) (*TestDB, erro
 		t:         t,
 	}
 
-	// Register cleanup with t.Cleanup for automatic cleanup
 	t.Cleanup(cleanup)
 
 	return testDB, nil
 }
 
-// Close closes the database connection and terminates the container
 func (tdb *TestDB) Close() {
 	if tdb.cleanup != nil {
 		tdb.cleanup()
 	}
 }
 
-// MustMigrate runs database migrations and fails the test if migrations fail
 func (tdb *TestDB) MustMigrate(migrationPath string) {
 	tdb.t.Helper()
 
 	if migrationPath == "" {
-		migrationPath = DefaultMigrationPath
+		migrationPath = defaultMigrationPath()
 	}
+	tdb.t.Logf("using migration path: %s", migrationPath)
 
 	ctx := context.Background()
 	if err := database.InitSchema(ctx, tdb.DB, tdb.Dialect, migrationPath); err != nil {
@@ -161,7 +161,18 @@ func (tdb *TestDB) MustMigrate(migrationPath string) {
 	}
 }
 
-// setupFallbackSchema creates a minimal schema for tests when migrations fail
+func defaultMigrationPath() string {
+	_, currentFile, _, ok := runtime.Caller(0)
+	if !ok {
+		return "file://migrations"
+	}
+
+	serverDir := filepath.Dir(filepath.Dir(filepath.Dir(currentFile)))
+	migrationsDir := filepath.Join(serverDir, "migrations")
+
+	return "file://" + migrationsDir
+}
+
 func (tdb *TestDB) setupFallbackSchema() {
 	tdb.t.Helper()
 
@@ -180,17 +191,18 @@ func (tdb *TestDB) setupFallbackSchema() {
 		-- Create environments table
 		CREATE TABLE IF NOT EXISTS environments (
 			id SERIAL PRIMARY KEY,
-name TEXT NOT NULL UNIQUE,
-repo_url TEXT NOT NULL,
-branch TEXT NOT NULL DEFAULT 'main',
-deploy_path TEXT NOT NULL DEFAULT 'config.yaml',
-provider TEXT NOT NULL CHECK (provider = 'github'),
-github_installation_id BIGINT NOT NULL DEFAULT 0,
+	name TEXT NOT NULL UNIQUE,
+	repo_url TEXT NOT NULL,
+	branch TEXT NOT NULL DEFAULT 'main',
+	deploy_path TEXT NOT NULL DEFAULT 'config.yaml',
+	provider TEXT NOT NULL CHECK (provider = 'github'),
+	github_installation_id BIGINT NOT NULL DEFAULT 0,
 	github_app_slug TEXT,
 	github_repository_id BIGINT,
 	webhook_secret TEXT NOT NULL,
 	webhook_id TEXT,
 	webhook_url TEXT NOT NULL,
+	notification_webhook_url TEXT,
 			status TEXT NOT NULL DEFAULT 'pending' CHECK (status IN ('pending', 'active', 'error', 'fallback')),
 			auto_reconcile BOOLEAN NOT NULL DEFAULT true,
 			deployed_commit TEXT,
@@ -205,9 +217,9 @@ github_installation_id BIGINT NOT NULL DEFAULT 0,
 		CREATE TABLE IF NOT EXISTS servers (
 			id VARCHAR(255) PRIMARY KEY,
 			name VARCHAR(255) NOT NULL,
-			repo_url VARCHAR(1024) NOT NULL,
-			branch VARCHAR(255) NOT NULL,
-			deploy_path VARCHAR(1024) NOT NULL,
+			repo_url VARCHAR(1024) NOT NULL DEFAULT '',
+			branch VARCHAR(255) NOT NULL DEFAULT 'main',
+			deploy_path VARCHAR(1024) NOT NULL DEFAULT 'config.yaml',
 			target_commit_hash VARCHAR(255),
 			auto_reconcile BOOLEAN NOT NULL DEFAULT FALSE,
 			environment_id INTEGER,
@@ -225,9 +237,15 @@ github_installation_id BIGINT NOT NULL DEFAULT 0,
 			is_drifted BOOLEAN NOT NULL DEFAULT FALSE,
 			status VARCHAR(50) NOT NULL,
 			error_message TEXT,
+			agent_version TEXT,
+			drift_details JSONB,
 			agent_timestamp TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
 			FOREIGN KEY (server_id) REFERENCES servers(id) ON DELETE CASCADE
 		);
+
+		-- Add missing columns if not present
+		ALTER TABLE environments ADD COLUMN IF NOT EXISTS notification_webhook_url TEXT;
+
 
 		-- Create agent_tokens table
 		CREATE TABLE IF NOT EXISTS agent_tokens (
@@ -275,7 +293,8 @@ github_installation_id BIGINT NOT NULL DEFAULT 0,
 			reason TEXT,
 			created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
 			completed_at TIMESTAMP,
-			error_message TEXT
+			error_message TEXT,
+			updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 		);
 
 		-- Create events table
@@ -316,17 +335,30 @@ github_installation_id BIGINT NOT NULL DEFAULT 0,
 			EXECUTE FUNCTION update_updated_at_column();
 
 		DROP TRIGGER IF EXISTS update_servers_updated_at ON servers;
-		CREATE TRIGGER update_servers_updated_at 
+		CREATE TRIGGER update_servers_updated_at
 			BEFORE UPDATE ON servers
 			FOR EACH ROW
 			EXECUTE FUNCTION update_updated_at_column();
+
+		-- Create schema_migrations table for migration tracking
+		CREATE TABLE IF NOT EXISTS schema_migrations (
+			version BIGINT NOT NULL PRIMARY KEY,
+			dirty BOOLEAN NOT NULL DEFAULT FALSE
+		);
 	`)
 	if err != nil {
 		tdb.t.Fatalf("Failed to create fallback schema: %v", err)
 	}
+
+	_, err = tdb.DB.Exec(
+		"INSERT INTO schema_migrations (version, dirty) VALUES ($1, false) ON CONFLICT DO NOTHING",
+		FallbackSchemaVersion,
+	)
+	if err != nil {
+		tdb.t.Fatalf("Failed to insert schema version: %v", err)
+	}
 }
 
-// SetupTestDB is a convenience function that starts a container and runs migrations
 func SetupTestDB(t testing.TB) *TestDB {
 	t.Helper()
 
@@ -336,14 +368,16 @@ func SetupTestDB(t testing.TB) *TestDB {
 		t.Fatalf("Failed to setup test database: %v", err)
 	}
 
-	// Wait for database to be ready before running migrations
-	tdb.WaitForDBConnection()
+	tdb.WaitForDBConnection(PollOptions{
+		Timeout:  30 * time.Second,
+		Interval: 100 * time.Millisecond,
+		Message:  "database connection to be available",
+	})
 
 	tdb.MustMigrate("")
 	return tdb
 }
 
-// SetupTestDBWithConfig is like SetupTestDB but allows custom container config
 func SetupTestDBWithConfig(t testing.TB, config ContainerConfig) *TestDB {
 	t.Helper()
 
@@ -352,41 +386,39 @@ func SetupTestDBWithConfig(t testing.TB, config ContainerConfig) *TestDB {
 		t.Fatalf("Failed to setup test database: %v", err)
 	}
 
-	// Wait for database to be ready before running migrations
-	tdb.WaitForDBConnection()
+	tdb.WaitForDBConnection(PollOptions{
+		Timeout:  30 * time.Second,
+		Interval: 100 * time.Millisecond,
+		Message:  "database connection to be available",
+	})
 
 	tdb.MustMigrate("")
 	return tdb
 }
 
-// Repository returns a database repository instance for the test database
 func (tdb *TestDB) Repository() *database.Repository {
 	return database.NewRepository(tdb.DB, tdb.Dialect)
 }
 
-// EnvironmentRepository returns an environment repository instance for the test database
 func (tdb *TestDB) EnvironmentRepository() *database.EnvironmentRepository {
 	return database.NewEnvironmentRepository(tdb.DB, tdb.Dialect)
 }
 
-// Context returns a context with timeout for test operations
 func (tdb *TestDB) Context() context.Context {
-	ctx, _ := context.WithTimeout(context.Background(), DefaultTestTimeout)
+	ctx, cancel := context.WithTimeout(context.Background(), DefaultTestTimeout)
+	tdb.t.Cleanup(cancel)
 	return ctx
 }
 
-// ContextWithTimeout returns a context with the specified timeout
 func (tdb *TestDB) ContextWithTimeout(timeout time.Duration) context.Context {
-	ctx, _ := context.WithTimeout(context.Background(), timeout)
+	ctx, cancel := context.WithTimeout(context.Background(), timeout)
+	tdb.t.Cleanup(cancel)
 	return ctx
 }
 
 var testDBOnce sync.Once
 var sharedTestDB *TestDB
 
-// SharedTestDB returns a shared test database instance for tests that don't need isolation.
-// The database is created once and reused across tests in the same process.
-// Use this only for read-only tests or when test isolation is not important.
 func SharedTestDB(t testing.TB) *TestDB {
 	t.Helper()
 
@@ -397,7 +429,6 @@ func SharedTestDB(t testing.TB) *TestDB {
 	return sharedTestDB
 }
 
-// ResetTables truncates all tables in the test database, useful for test cleanup
 func (tdb *TestDB) ResetTables() error {
 	_, err := tdb.DB.Exec(`
 		TRUNCATE TABLE 

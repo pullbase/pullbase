@@ -25,7 +25,6 @@ import (
 	"github.com/pullbase/pullbase/server/pkg/token"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
-	"golang.org/x/crypto/bcrypt"
 )
 
 type testServer struct {
@@ -43,6 +42,7 @@ func setupTestServer(t *testing.T) *testServer {
 	t.Helper()
 	ctx := context.Background()
 
+	testutil.UseFastBcrypt(t) // Use fast bcrypt for tests
 	tdb := testutil.SetupTestDB(t)
 	repo := tdb.Repository()
 
@@ -54,12 +54,7 @@ func setupTestServer(t *testing.T) *testServer {
 	}
 
 	for role, user := range testUsers {
-		hashedPasswordBytes, hashErr := bcrypt.GenerateFromPassword([]byte(user.PasswordHash), bcrypt.DefaultCost)
-		if hashErr != nil {
-			t.Fatalf("Failed to hash password for user %s: %v", role, hashErr)
-		}
-
-		createUserErr := repo.CreateUser(ctx, user.Username, string(hashedPasswordBytes), user.Role)
+		createUserErr := repo.CreateUser(ctx, user.Username, user.PasswordHash, user.Role)
 		if createUserErr != nil && !errors.Is(createUserErr, database.ErrConflict) {
 			t.Fatalf("Failed to create test user '%s': %v", role, createUserErr)
 		}
@@ -378,7 +373,7 @@ func TestLoginHandler(t *testing.T) {
 			require.NoError(t, err, "Request failed")
 			defer resp.Body.Close()
 
-			assert.Equal(t, http.StatusBadRequest, resp.StatusCode, "Expected error for nonexistent server")
+			assert.Equal(t, http.StatusNotFound, resp.StatusCode, "Expected error for nonexistent server")
 		})
 
 		t.Run("Nonexistent Environment ID", func(t *testing.T) {
@@ -395,7 +390,7 @@ func TestLoginHandler(t *testing.T) {
 			require.NoError(t, err, "Request failed")
 			defer resp.Body.Close()
 
-			assert.Equal(t, http.StatusBadRequest, resp.StatusCode, "Expected error for nonexistent environment")
+			assert.Equal(t, http.StatusNotFound, resp.StatusCode, "Expected error for nonexistent environment")
 		})
 	})
 }

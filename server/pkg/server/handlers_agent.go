@@ -5,7 +5,6 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
-	"log/slog"
 	"net/http"
 	"strings"
 	"time"
@@ -13,6 +12,7 @@ import (
 	chi "github.com/go-chi/chi/v5"
 	"github.com/pullbase/pullbase/server/pkg/apierrors"
 	"github.com/pullbase/pullbase/server/pkg/database"
+	"github.com/pullbase/pullbase/server/pkg/logging"
 	"github.com/pullbase/pullbase/server/pkg/models"
 	"github.com/pullbase/pullbase/server/pkg/token"
 )
@@ -47,12 +47,12 @@ type AgentGitTokenResponse struct {
 }
 
 type AgentStatusPayload struct {
-	CommitHash   string           `json:"commit_hash"`
-	IsDrifted    bool             `json:"is_drifted"`
-	Status       string           `json:"status"`
-	ErrorMessage *string          `json:"error_message,omitempty"`
-	AgentVersion *string          `json:"agent_version,omitempty"`
-	DriftDetails *json.RawMessage `json:"drift_details,omitempty"`
+	CommitHash   string               `json:"commit_hash"`
+	IsDrifted    bool                 `json:"is_drifted"`
+	Status       string               `json:"status"`
+	ErrorMessage *string              `json:"error_message,omitempty"`
+	AgentVersion *string              `json:"agent_version,omitempty"`
+	DriftDetails *models.DriftDetails `json:"drift_details,omitempty"`
 }
 
 // tokenAttempt records a single git token request attempt
@@ -80,32 +80,29 @@ func AgentAuthMiddleware(repo *database.Repository) func(http.Handler) http.Hand
 
 			tokenString := parts[1]
 
-			// Validate token format first
 			if !token.ValidateTokenFormat(tokenString) {
 				writeAPIError(w, apierrors.Unauthorized("Invalid token format"))
 				return
 			}
 
-			// Hash the token to look it up in the database
 			tokenHash := token.HashToken(tokenString)
 
-			// Get token from database
 			agentToken, err := repo.GetAgentTokenByHash(r.Context(), tokenHash)
 			if err != nil {
 				if errors.Is(err, database.ErrNotFound) {
 					writeAPIError(w, apierrors.Unauthorized("Invalid or expired token"))
 					return
 				}
-				slog.Error("failed to validate agent token", "error", err)
+				logging.Error("failed to validate agent token", "error", err)
 				writeAPIError(w, apierrors.Internal("Failed to validate token"))
 				return
 			}
 
-			// Update last used timestamp (async, don't block on this)
 			go func() {
-				ctx := context.Background()
+				ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+				defer cancel()
 				if err := repo.UpdateAgentTokenLastUsed(ctx, agentToken.ID); err != nil {
-					slog.Warn("failed to update token last used timestamp", "token_id", agentToken.ID, "error", err)
+					logging.Warn("failed to update token last used timestamp", "token_id", agentToken.ID, "error", err)
 				}
 			}()
 
@@ -241,17 +238,15 @@ func (api *API) UpdateAgentStatusHandler(w http.ResponseWriter, r *http.Request)
 
 	serverID := chi.URLParam(r, "serverID")
 	var payload AgentStatusPayload
+	defer r.Body.Close()
 
 	if err := json.NewDecoder(r.Body).Decode(&payload); err != nil {
 		api.log().Error("bad request for status update", "server_id", serverID, "error", err)
 		writeAPIError(w, apierrors.BadRequestf("Invalid status payload: %s", err.Error()))
 		return
 	}
-	defer r.Body.Close()
 
-	// Ensure agents can only update status for servers in their assigned environment
 	if claims.EnvironmentID != nil {
-		// Check if the server belongs to the agent's environment
 		isInEnvironment, err := api.Repo.IsServerInEnvironment(r.Context(), serverID, *claims.EnvironmentID)
 		if err != nil {
 			api.log().Error("failed to check server-environment relationship",
@@ -529,13 +524,13 @@ func (api *API) AgentUpdateStatusHandler(w http.ResponseWriter, r *http.Request)
 
 	serverID := agentToken.ServerID
 	var payload AgentStatusPayload
+	defer r.Body.Close()
 
 	if err := json.NewDecoder(r.Body).Decode(&payload); err != nil {
 		api.log().Error("bad request for agent status update", "server_id", serverID, "error", err)
 		writeAPIError(w, apierrors.BadRequestf("Invalid status payload: %s", err.Error()))
 		return
 	}
-	defer r.Body.Close()
 
 	logAttrs := []any{
 		"server_id", serverID,

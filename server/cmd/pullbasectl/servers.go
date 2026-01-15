@@ -12,6 +12,8 @@ import (
 	"strings"
 	"text/tabwriter"
 	"time"
+
+	"golang.org/x/term"
 )
 
 type serverResponse struct {
@@ -374,6 +376,10 @@ func runServersDelete(args []string) error {
 	}
 
 	if !*force {
+		if !term.IsTerminal(int(os.Stdin.Fd())) {
+			return errors.New("confirmation required: use --force for non-interactive execution")
+		}
+
 		fmt.Printf("Are you sure you want to delete server '%s'? [y/N]: ", *serverID)
 		var confirm string
 		fmt.Scanln(&confirm)
@@ -459,7 +465,7 @@ func runServersInstallScript(args []string) error {
 
 	values := url.Values{}
 	values.Set("token", *agentToken)
-	if *version != "" {
+	if *version != "" && *version != "latest" {
 		values.Set("version", *version)
 	}
 

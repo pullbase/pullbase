@@ -5,6 +5,8 @@ import (
 	"fmt"
 	"testing"
 	"time"
+
+	"github.com/pullbase/pullbase/server/pkg/database"
 )
 
 // PollCondition represents a condition function that returns true when the condition is met
@@ -370,4 +372,14 @@ func RequireError(t testing.TB, err error, msgAndArgs ...interface{}) {
 			t.Fatalf("Expected an error but got nil")
 		}
 	}
+}
+
+// UseFastBcrypt sets a lower bcrypt cost for faster test execution.
+func UseFastBcrypt(t testing.TB) {
+	t.Helper()
+	oldCost := database.BcryptCost
+	database.BcryptCost = 4
+	t.Cleanup(func() {
+		database.BcryptCost = oldCost
+	})
 }

@@ -6,10 +6,10 @@ package gitmonitor
 import (
 	"context"
 	"io"
-	"log/slog"
 	"testing"
 	"time"
 
+	"github.com/pullbase/pullbase/server/pkg/logging"
 	"github.com/pullbase/pullbase/server/pkg/models"
 	"github.com/pullbase/pullbase/server/pkg/rollback"
 	"github.com/pullbase/pullbase/server/pkg/testutil"
@@ -51,7 +51,7 @@ func TestEnvironmentMonitor_AddEnvironment(t *testing.T) {
 	// Test database connection
 	tdb.WaitForDBConnection()
 
-	logger := slog.New(slog.NewTextHandler(io.Discard, nil))
+	logger := logging.NewLogger(logging.Options{Format: "text", Output: io.Discard})
 
 	encryptionKey := make([]byte, 32)
 	for i := range encryptionKey {
@@ -104,11 +104,12 @@ func TestEnvironmentMonitor_Encryption(t *testing.T) {
 		encryptionKey[i] = byte(i)
 	}
 
-	logger := slog.New(slog.NewTextHandler(io.Discard, nil))
+	logger := logging.NewLogger(logging.Options{Format: "text", Output: io.Discard})
 	repo := tdb.EnvironmentRepository()
-	mockServerRepo := &MockServerRepository{}
 	router := NewWebhookRouter(logger, nil)
 	webhookManager := NewWebhookManager(router, logger, repo)
+	mockServerRepo := &MockServerRepository{}
+
 	monitor := NewEnvironmentMonitor(webhookManager, logger, encryptionKey, repo, mockServerRepo, &stubInstallationTokenProvider{token: "dummy-token"})
 
 	originalSecret := "test-secret-123"
@@ -247,7 +248,7 @@ func TestWebhookStatus_UpdateStatus(t *testing.T) {
 	// Test database connection
 	tdb.WaitForDBConnection()
 
-	logger := slog.New(slog.NewTextHandler(io.Discard, nil))
+	logger := logging.NewLogger(logging.Options{Format: "text", Output: io.Discard})
 	repo := tdb.EnvironmentRepository()
 	router := NewWebhookRouter(logger, nil)
 	webhookManager := NewWebhookManager(router, logger, repo)
@@ -264,7 +265,7 @@ func TestEnvironmentMonitor_WebhookRollbackIntegration(t *testing.T) {
 	tdb := setupTestDatabase(t)
 	ctx := tdb.Context()
 
-	logger := slog.New(slog.NewTextHandler(io.Discard, nil))
+	logger := logging.NewLogger(logging.Options{Format: "text", Output: io.Discard})
 
 	encryptionKey := make([]byte, 32)
 	for i := range encryptionKey {

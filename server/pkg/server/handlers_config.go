@@ -33,6 +33,7 @@ func (a *API) ValidateConfigHandler(w http.ResponseWriter, r *http.Request) {
 	}
 
 	body, err := io.ReadAll(r.Body)
+	defer r.Body.Close()
 	if err != nil {
 		writeJSON(w, http.StatusBadRequest, ValidateConfigResponse{
 			Valid: false,
@@ -42,7 +43,6 @@ func (a *API) ValidateConfigHandler(w http.ResponseWriter, r *http.Request) {
 		})
 		return
 	}
-	defer r.Body.Close()
 
 	if len(body) == 0 {
 		writeJSON(w, http.StatusBadRequest, ValidateConfigResponse{
