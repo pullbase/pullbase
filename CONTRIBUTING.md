@@ -39,7 +39,9 @@ Please be respectful and constructive in all interactions. We're building someth
 - Go 1.22+
 - Node.js 20+ (for web UI)
 - Docker (for local testing)
-- PostgreSQL 16+ (or use SQLite for development)
+- PostgreSQL 16+ (or use SQLite 3.35.0+ for development)
+
+> **Note:** SQLite 3.35.0+ is required because down migrations use `ALTER TABLE ... DROP COLUMN`, which was added in that version.
 
 ### Building
 

@@ -67,7 +67,7 @@ func SetupRoutes(api *API, authService *auth.Service, corsConfig CORSConfig) *ch
 	r.Use(cors.Handler(cors.Options{
 		AllowedOrigins:   corsConfig.AllowedOrigins,
 		AllowedMethods:   []string{"GET", "POST", "PUT", "DELETE", "OPTIONS"},
-		AllowedHeaders:   []string{"Accept", "Authorization", "Content-Type", "X-CSRF-Token"},
+		AllowedHeaders:   []string{"Accept", "Authorization", "Content-Type"},
 		ExposedHeaders:   []string{"Link"},
 		AllowCredentials: true,
 		AllowOriginFunc:  buildAllowOriginFunc(corsConfig),

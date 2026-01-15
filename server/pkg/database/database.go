@@ -108,8 +108,50 @@ func newSQLite(cfg Config) (*sqlx.DB, error) {
 		return nil, fmt.Errorf("error connecting to SQLite: %w", err)
 	}
 
+	if err := checkSQLiteVersion(db); err != nil {
+		logging.Warn("SQLite version check failed", "error", err)
+	}
+
 	logging.Info("connected to SQLite database", "path", dbPath)
 	return db, nil
+}
+
+func checkSQLiteVersion(db *sqlx.DB) error {
+	var version string
+	if err := db.Get(&version, "SELECT sqlite_version()"); err != nil {
+		return fmt.Errorf("failed to query SQLite version: %w", err)
+	}
+
+	major, minor, patch, err := parseSQLiteVersion(version)
+	if err != nil {
+		return fmt.Errorf("failed to parse SQLite version %q: %w", version, err)
+	}
+
+	const minMajor, minMinor = 3, 35
+	if major < minMajor || (major == minMajor && minor < minMinor) {
+		return fmt.Errorf("SQLite version %s is older than required 3.35.0 (needed for ALTER TABLE DROP COLUMN in migrations)", version)
+	}
+
+	logging.Debug("SQLite version check passed", "version", version, "major", major, "minor", minor, "patch", patch)
+	return nil
+}
+
+func parseSQLiteVersion(version string) (major, minor, patch int, err error) {
+	parts := strings.Split(version, ".")
+	if len(parts) < 2 {
+		return 0, 0, 0, fmt.Errorf("invalid version format")
+	}
+
+	if _, err := fmt.Sscanf(parts[0], "%d", &major); err != nil {
+		return 0, 0, 0, err
+	}
+	if _, err := fmt.Sscanf(parts[1], "%d", &minor); err != nil {
+		return 0, 0, 0, err
+	}
+	if len(parts) >= 3 {
+		fmt.Sscanf(parts[2], "%d", &patch)
+	}
+	return major, minor, patch, nil
 }
 
 func CheckPassword(password, hash string) bool {

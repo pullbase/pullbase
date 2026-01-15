@@ -243,7 +243,7 @@ func validateFileMode(modeStr string) error {
 		return fmt.Errorf("invalid file mode '%s': must be a valid octal number (e.g., '0644', '0755')", modeStr)
 	}
 	if mode > 0777 {
-		return fmt.Errorf("invalid file mode '%s': must be less than 0777", modeStr)
+		return fmt.Errorf("invalid file mode '%s': must not exceed 0777", modeStr)
 	}
 	return nil
 }

@@ -26,7 +26,6 @@ import (
 
 	"github.com/pullbase/pullbase/server/pkg/auth"
 	appconfig "github.com/pullbase/pullbase/server/pkg/config"
-	"github.com/pullbase/pullbase/server/pkg/csrf"
 	"github.com/pullbase/pullbase/server/pkg/database"
 	"github.com/pullbase/pullbase/server/pkg/githubapp"
 	"github.com/pullbase/pullbase/server/pkg/gitmonitor"
@@ -315,7 +314,6 @@ func main() {
 	api := &server.API{
 		Repo:             repo,
 		Auth:             authService,
-		CSRF:             csrf.NewManager(),
 		RollbackHandlers: rollbackHandlers,
 		WebhookHandlers:  webhookHandlers,
 		TokenProvider:    installationTokenProvider,

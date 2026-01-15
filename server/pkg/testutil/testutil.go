@@ -72,8 +72,7 @@ func StartPostgresContainer(t testing.TB, config ContainerConfig) (*TestDB, erro
 		postgres.WithUsername(config.Username),
 		postgres.WithPassword(config.Password),
 		testcontainers.WithWaitStrategy(
-			wait.ForLog("database system is ready to accept connections").
-				WithOccurrence(2).
+			wait.ForListeningPort("5432/tcp").
 				WithStartupTimeout(config.StartupTimeout),
 		),
 	)
@@ -354,7 +353,11 @@ func SetupTestDB(t testing.TB) *TestDB {
 		t.Fatalf("Failed to setup test database: %v", err)
 	}
 
-	tdb.WaitForDBConnection()
+	tdb.WaitForDBConnection(PollOptions{
+		Timeout:  30 * time.Second,
+		Interval: 100 * time.Millisecond,
+		Message:  "database connection to be available",
+	})
 
 	tdb.MustMigrate("")
 	return tdb
@@ -368,7 +371,11 @@ func SetupTestDBWithConfig(t testing.TB, config ContainerConfig) *TestDB {
 		t.Fatalf("Failed to setup test database: %v", err)
 	}
 
-	tdb.WaitForDBConnection()
+	tdb.WaitForDBConnection(PollOptions{
+		Timeout:  30 * time.Second,
+		Interval: 100 * time.Millisecond,
+		Message:  "database connection to be available",
+	})
 
 	tdb.MustMigrate("")
 	return tdb
@@ -383,12 +390,14 @@ func (tdb *TestDB) EnvironmentRepository() *database.EnvironmentRepository {
 }
 
 func (tdb *TestDB) Context() context.Context {
-	ctx, _ := context.WithTimeout(context.Background(), DefaultTestTimeout)
+	ctx, cancel := context.WithTimeout(context.Background(), DefaultTestTimeout)
+	tdb.t.Cleanup(cancel)
 	return ctx
 }
 
 func (tdb *TestDB) ContextWithTimeout(timeout time.Duration) context.Context {
-	ctx, _ := context.WithTimeout(context.Background(), timeout)
+	ctx, cancel := context.WithTimeout(context.Background(), timeout)
+	tdb.t.Cleanup(cancel)
 	return ctx
 }
 

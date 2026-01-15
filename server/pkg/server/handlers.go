@@ -12,7 +12,6 @@ import (
 
 	"github.com/pullbase/pullbase/server/pkg/apierrors"
 	"github.com/pullbase/pullbase/server/pkg/auth"
-	"github.com/pullbase/pullbase/server/pkg/csrf"
 	"github.com/pullbase/pullbase/server/pkg/database"
 	"github.com/pullbase/pullbase/server/pkg/logging"
 	"github.com/pullbase/pullbase/server/pkg/models"
@@ -64,7 +63,6 @@ type InstallationTokenProvider interface {
 type API struct {
 	Repo                  *database.Repository
 	Auth                  *auth.Service
-	CSRF                  *csrf.Manager
 	WebhookHandlers       *WebhookHandlers
 	RollbackHandlers      *RollbackHandlers
 	TokenProvider         InstallationTokenProvider

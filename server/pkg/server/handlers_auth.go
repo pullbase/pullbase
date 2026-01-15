@@ -6,6 +6,7 @@ import (
 	"crypto/subtle"
 	"encoding/json"
 	"errors"
+	"net"
 	"net/http"
 	"os"
 	"regexp"
@@ -78,7 +79,6 @@ type DeleteUserRequest struct {
 	ConfirmUsername string `json:"confirm_username"`
 }
 
-// UserSummary provides basic user info without sensitive details
 type UserSummary struct {
 	ID       int    `json:"id"`
 	Username string `json:"username"`
@@ -91,7 +91,6 @@ var allowedUserRoles = []string{
 	models.RoleViewer,
 }
 
-// EnableBootstrap stores the hashed bootstrap secret and makes the bootstrap endpoint available.
 func (a *API) EnableBootstrap(secret, secretPath string) {
 	if a == nil {
 		return
@@ -110,7 +109,6 @@ func (a *API) EnableBootstrap(secret, secretPath string) {
 	a.bootstrapAttempts = make(map[string]time.Time)
 }
 
-// DisableBootstrap clears any bootstrap credentials and disables the endpoint.
 func (a *API) DisableBootstrap() {
 	if a == nil {
 		return
@@ -773,10 +771,21 @@ func isRequestSecure(r *http.Request) bool {
 	if r.TLS != nil {
 		return true
 	}
-	return strings.EqualFold(r.Header.Get("X-Forwarded-Proto"), "https")
+	if isLoopbackRequest(r) && strings.EqualFold(r.Header.Get("X-Forwarded-Proto"), "https") {
+		return true
+	}
+	return false
 }
 
-// GetUserClaims retrieves user claims from the request context.
+func isLoopbackRequest(r *http.Request) bool {
+	host, _, err := net.SplitHostPort(r.RemoteAddr)
+	if err != nil {
+		host = r.RemoteAddr
+	}
+	ip := net.ParseIP(host)
+	return ip != nil && ip.IsLoopback()
+}
+
 func GetUserClaims(ctx context.Context) (*auth.Claims, bool) {
 	claims, ok := ctx.Value(UserClaimsKey).(*auth.Claims)
 	return claims, ok
