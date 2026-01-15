@@ -29,7 +29,6 @@ COPY --from=web-builder /app/web/dist /app/server/pkg/server/ui
 # Build server with embedded UI
 WORKDIR /app/server
 RUN go build -o /app/pullbase-server ./cmd/server
-RUN go build -o /app/pullbase-seed ./cmd/seed
 RUN go build -o /app/pullbasectl ./cmd/pullbasectl
 
 # Final runtime stage
@@ -42,7 +41,6 @@ RUN apk add --no-cache ca-certificates
 
 # Copy binaries from builder
 COPY --from=go-builder /app/pullbase-server .
-COPY --from=go-builder /app/pullbase-seed .
 COPY --from=go-builder /app/pullbasectl .
 
 # Create necessary directories
