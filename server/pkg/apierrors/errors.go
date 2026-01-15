@@ -8,6 +8,7 @@ import (
 	"errors"
 	"fmt"
 	"net/http"
+	"strings"
 )
 
 // Kind represents the category of an API error.
@@ -23,6 +24,7 @@ const (
 	KindInternal
 	KindBadRequest
 	KindTooManyRequests
+	KindGone
 	KindNotImplemented
 )
 
@@ -45,6 +47,8 @@ func (k Kind) String() string {
 		return "bad_request"
 	case KindTooManyRequests:
 		return "too_many_requests"
+	case KindGone:
+		return "gone"
 	case KindNotImplemented:
 		return "not_implemented"
 	default:
@@ -67,6 +71,8 @@ func (k Kind) HTTPStatus() int {
 		return http.StatusConflict
 	case KindTooManyRequests:
 		return http.StatusTooManyRequests
+	case KindGone:
+		return http.StatusGone
 	case KindNotImplemented:
 		return http.StatusNotImplemented
 	case KindInternal:
@@ -78,10 +84,10 @@ func (k Kind) HTTPStatus() int {
 
 // Error represents an API error with a kind, message, and optional cause.
 type Error struct {
-	Kind    Kind   // The category of error
-	Message string // Human-readable error message
-	Op      string // Operation that failed (e.g., "GetServer", "CreateUser")
-	Err     error  // Underlying error, if any
+	Kind    Kind
+	Message string
+	Op      string
+	Err     error
 }
 
 // Error implements the error interface.
@@ -98,17 +104,14 @@ func (e *Error) Error() string {
 	return e.Message
 }
 
-// Unwrap returns the underlying error for use with errors.Is and errors.As.
 func (e *Error) Unwrap() error {
 	return e.Err
 }
 
-// HTTPStatus returns the HTTP status code for this error.
 func (e *Error) HTTPStatus() int {
 	return e.Kind.HTTPStatus()
 }
 
-// New creates a new Error with the given kind and message.
 func New(kind Kind, message string) *Error {
 	return &Error{
 		Kind:    kind,
@@ -116,7 +119,6 @@ func New(kind Kind, message string) *Error {
 	}
 }
 
-// Wrap wraps an existing error with additional context.
 func Wrap(kind Kind, op string, err error, message string) *Error {
 	return &Error{
 		Kind:    kind,
@@ -126,7 +128,6 @@ func Wrap(kind Kind, op string, err error, message string) *Error {
 	}
 }
 
-// WrapWithMessage wraps an error and uses the provided message.
 func WrapWithMessage(kind Kind, err error, message string) *Error {
 	return &Error{
 		Kind:    kind,
@@ -135,7 +136,6 @@ func WrapWithMessage(kind Kind, err error, message string) *Error {
 	}
 }
 
-// NotFound creates a not found error.
 func NotFound(resource string, identifier interface{}) *Error {
 	return &Error{
 		Kind:    KindNotFound,
@@ -143,7 +143,6 @@ func NotFound(resource string, identifier interface{}) *Error {
 	}
 }
 
-// NotFoundf creates a not found error with a formatted message.
 func NotFoundf(format string, args ...interface{}) *Error {
 	return &Error{
 		Kind:    KindNotFound,
@@ -151,7 +150,6 @@ func NotFoundf(format string, args ...interface{}) *Error {
 	}
 }
 
-// Unauthorized creates an unauthorized error.
 func Unauthorized(message string) *Error {
 	return &Error{
 		Kind:    KindUnauthorized,
@@ -159,7 +157,6 @@ func Unauthorized(message string) *Error {
 	}
 }
 
-// Unauthorizedf creates an unauthorized error with a formatted message.
 func Unauthorizedf(format string, args ...interface{}) *Error {
 	return &Error{
 		Kind:    KindUnauthorized,
@@ -167,7 +164,6 @@ func Unauthorizedf(format string, args ...interface{}) *Error {
 	}
 }
 
-// Forbidden creates a forbidden error.
 func Forbidden(message string) *Error {
 	return &Error{
 		Kind:    KindForbidden,
@@ -175,7 +171,6 @@ func Forbidden(message string) *Error {
 	}
 }
 
-// Forbiddenf creates a forbidden error with a formatted message.
 func Forbiddenf(format string, args ...interface{}) *Error {
 	return &Error{
 		Kind:    KindForbidden,
@@ -183,7 +178,6 @@ func Forbiddenf(format string, args ...interface{}) *Error {
 	}
 }
 
-// Validation creates a validation error.
 func Validation(message string) *Error {
 	return &Error{
 		Kind:    KindValidation,
@@ -191,7 +185,6 @@ func Validation(message string) *Error {
 	}
 }
 
-// Validationf creates a validation error with a formatted message.
 func Validationf(format string, args ...interface{}) *Error {
 	return &Error{
 		Kind:    KindValidation,
@@ -199,7 +192,6 @@ func Validationf(format string, args ...interface{}) *Error {
 	}
 }
 
-// BadRequest creates a bad request error.
 func BadRequest(message string) *Error {
 	return &Error{
 		Kind:    KindBadRequest,
@@ -207,7 +199,6 @@ func BadRequest(message string) *Error {
 	}
 }
 
-// BadRequestf creates a bad request error with a formatted message.
 func BadRequestf(format string, args ...interface{}) *Error {
 	return &Error{
 		Kind:    KindBadRequest,
@@ -215,7 +206,6 @@ func BadRequestf(format string, args ...interface{}) *Error {
 	}
 }
 
-// Conflict creates a conflict error.
 func Conflict(message string) *Error {
 	return &Error{
 		Kind:    KindConflict,
@@ -223,7 +213,6 @@ func Conflict(message string) *Error {
 	}
 }
 
-// Conflictf creates a conflict error with a formatted message.
 func Conflictf(format string, args ...interface{}) *Error {
 	return &Error{
 		Kind:    KindConflict,
@@ -231,7 +220,6 @@ func Conflictf(format string, args ...interface{}) *Error {
 	}
 }
 
-// Internal creates an internal server error.
 func Internal(message string) *Error {
 	return &Error{
 		Kind:    KindInternal,
@@ -239,7 +227,6 @@ func Internal(message string) *Error {
 	}
 }
 
-// Internalf creates an internal server error with a formatted message.
 func Internalf(format string, args ...interface{}) *Error {
 	return &Error{
 		Kind:    KindInternal,
@@ -247,7 +234,6 @@ func Internalf(format string, args ...interface{}) *Error {
 	}
 }
 
-// TooManyRequests creates a rate limit error.
 func TooManyRequests(message string) *Error {
 	return &Error{
 		Kind:    KindTooManyRequests,
@@ -255,7 +241,13 @@ func TooManyRequests(message string) *Error {
 	}
 }
 
-// NotImplemented creates a not implemented error.
+func Gone(message string) *Error {
+	return &Error{
+		Kind:    KindGone,
+		Message: message,
+	}
+}
+
 func NotImplemented(message string) *Error {
 	return &Error{
 		Kind:    KindNotImplemented,
@@ -263,15 +255,12 @@ func NotImplemented(message string) *Error {
 	}
 }
 
-// ErrorResponse is the JSON structure returned for API errors.
 type ErrorResponse struct {
 	Error     string `json:"error"`
 	Kind      string `json:"kind,omitempty"`
 	RequestID string `json:"request_id,omitempty"`
 }
 
-// WriteError writes an error response to the HTTP response writer.
-// It handles both *Error types and standard errors.
 func WriteError(w http.ResponseWriter, err error) {
 	var apiErr *Error
 	if errors.As(err, &apiErr) {
@@ -279,12 +268,9 @@ func WriteError(w http.ResponseWriter, err error) {
 		return
 	}
 
-	// For unknown errors, return internal server error
 	writeErrorResponse(w, http.StatusInternalServerError, "Internal server error", KindInternal.String())
 }
 
-// WriteErrorWithStatus writes an error with a specific HTTP status code.
-// Use this when you need to override the default status from the error kind.
 func WriteErrorWithStatus(w http.ResponseWriter, status int, err error) {
 	var apiErr *Error
 	if errors.As(err, &apiErr) {
@@ -295,7 +281,6 @@ func WriteErrorWithStatus(w http.ResponseWriter, status int, err error) {
 	writeErrorResponse(w, status, err.Error(), "")
 }
 
-// WriteHTTPError writes an error with a specific status code and message.
 func WriteHTTPError(w http.ResponseWriter, status int, message string) {
 	kind := statusToKind(status)
 	writeErrorResponse(w, status, message, kind.String())
@@ -315,7 +300,6 @@ func writeErrorResponse(w http.ResponseWriter, status int, message, kind string)
 	json.NewEncoder(w).Encode(resp)
 }
 
-// statusToKind maps HTTP status codes to error kinds.
 func statusToKind(status int) Kind {
 	switch status {
 	case http.StatusNotFound:
@@ -330,6 +314,8 @@ func statusToKind(status int) Kind {
 		return KindConflict
 	case http.StatusTooManyRequests:
 		return KindTooManyRequests
+	case http.StatusGone:
+		return KindGone
 	case http.StatusNotImplemented:
 		return KindNotImplemented
 	case http.StatusInternalServerError:
@@ -339,8 +325,6 @@ func statusToKind(status int) Kind {
 	}
 }
 
-// Is reports whether err matches target using the error kind.
-// This allows checking error kinds without exposing the full error type.
 func Is(err error, kind Kind) bool {
 	var apiErr *Error
 	if errors.As(err, &apiErr) {
@@ -349,8 +333,6 @@ func Is(err error, kind Kind) bool {
 	return false
 }
 
-// GetKind extracts the error kind from an error.
-// Returns KindUnknown if the error is not an API error.
 func GetKind(err error) Kind {
 	var apiErr *Error
 	if errors.As(err, &apiErr) {
@@ -359,8 +341,6 @@ func GetKind(err error) Kind {
 	return KindUnknown
 }
 
-// GetHTTPStatus extracts the HTTP status code from an error.
-// Returns 500 for unknown errors.
 func GetHTTPStatus(err error) int {
 	var apiErr *Error
 	if errors.As(err, &apiErr) {
@@ -369,42 +349,24 @@ func GetHTTPStatus(err error) int {
 	return http.StatusInternalServerError
 }
 
-// FromDatabaseError converts common database errors to API errors.
-// This is useful for mapping database-layer errors to appropriate API responses.
 func FromDatabaseError(err error, resourceType, identifier string) *Error {
 	if err == nil {
 		return nil
 	}
 
-	// Check for common database error sentinels
-	// These string checks allow compatibility without importing the database package
 	errStr := err.Error()
 
-	if contains(errStr, "not found") || contains(errStr, "no rows") {
+	if strings.Contains(errStr, "not found") || strings.Contains(errStr, "no rows") {
 		return NotFound(resourceType, identifier)
 	}
 
-	if contains(errStr, "already exists") || contains(errStr, "unique constraint") || contains(errStr, "duplicate") {
+	if strings.Contains(errStr, "already exists") || strings.Contains(errStr, "unique constraint") || strings.Contains(errStr, "duplicate") {
 		return Conflictf("%s '%s' already exists", resourceType, identifier)
 	}
 
-	// For other database errors, return internal error
 	return &Error{
 		Kind:    KindInternal,
 		Message: fmt.Sprintf("Failed to access %s", resourceType),
 		Err:     err,
 	}
-}
-
-func contains(s, substr string) bool {
-	return len(s) >= len(substr) && (s == substr || len(s) > 0 && containsAt(s, substr))
-}
-
-func containsAt(s, substr string) bool {
-	for i := 0; i <= len(s)-len(substr); i++ {
-		if s[i:i+len(substr)] == substr {
-			return true
-		}
-	}
-	return false
 }

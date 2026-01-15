@@ -89,7 +89,8 @@ func ValidateBytes(yamlContent []byte) []ValidationError {
 	}
 
 	var config ServerConfig
-	if err := yaml.Unmarshal(yamlContent, &config); err != nil {
+	if len(rootNode.Content) > 0 {
+		if err := rootNode.Content[0].Decode(&config); err != nil {
 		if yamlErr, ok := err.(*yaml.TypeError); ok {
 			for _, e := range yamlErr.Errors {
 				errors = append(errors, ValidationError{
@@ -104,6 +105,7 @@ func ValidateBytes(yamlContent []byte) []ValidationError {
 			})
 		}
 		return errors
+		}
 	}
 
 	errors = append(errors, validateConfigContent(&config, &rootNode)...)
@@ -236,9 +238,12 @@ func validateFileMode(modeStr string) error {
 		return nil
 	}
 
-	_, err := strconv.ParseUint(modeStr, 8, 32)
+	mode, err := strconv.ParseUint(modeStr, 8, 32)
 	if err != nil {
 		return fmt.Errorf("invalid file mode '%s': must be a valid octal number (e.g., '0644', '0755')", modeStr)
+	}
+	if mode > 0777 {
+		return fmt.Errorf("invalid file mode '%s': must be less than 0777", modeStr)
 	}
 	return nil
 }

@@ -260,7 +260,7 @@ func validateConfig(config *Config) error {
 			return fmt.Errorf("database user is required for PostgreSQL")
 		}
 		if config.Database.Password == "" {
-			return fmt.Errorf("database password is required for PostgreSQL")
+			logging.Warn("no database password configured - ensure alternative auth method (IAM, peer, certificate) is set up")
 		}
 		if config.Database.DBName == "" {
 			return fmt.Errorf("database name is required for PostgreSQL")

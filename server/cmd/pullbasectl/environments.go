@@ -10,6 +10,8 @@ import (
 	"strings"
 	"text/tabwriter"
 	"time"
+
+	"golang.org/x/term"
 )
 
 type environmentResponse struct {
@@ -362,6 +364,9 @@ func runEnvironmentsDelete(args []string) error {
 	}
 
 	if !*force {
+		if !term.IsTerminal(int(os.Stdin.Fd())) {
+			return errors.New("--force is required for non-interactive usage")
+		}
 		fmt.Printf("Are you sure you want to delete environment %d? This will affect all associated servers. [y/N]: ", *envID)
 		var confirm string
 		fmt.Scanln(&confirm)
