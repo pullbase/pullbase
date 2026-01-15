@@ -1,0 +1,136 @@
+name: Release
+
+on:
+  push:
+    tags:
+      - 'v*'
+
+env:
+  REGISTRY: docker.io
+  IMAGE_NAME: pullbaseio/pullbase
+
+jobs:
+  # Build and push Docker image for the server
+  docker:
+    runs-on: buildjet-4vcpu-ubuntu-2204
+    permissions:
+      contents: read
+      packages: write
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up QEMU
+        uses: docker/setup-qemu-action@v3
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Login to Docker Hub
+        uses: docker/login-action@v3
+        with:
+          username: ${{ secrets.DOCKERHUB_USERNAME }}
+          password: ${{ secrets.DOCKERHUB_TOKEN }}
+
+      - name: Extract metadata
+        id: meta
+        uses: docker/metadata-action@v5
+        with:
+          images: ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}
+          tags: |
+            type=semver,pattern={{version}}
+            type=semver,pattern={{major}}.{{minor}}
+            type=semver,pattern={{major}}
+            type=raw,value=latest,enable={{is_default_branch}}
+
+      - name: Build and push
+        uses: docker/build-push-action@v6
+        with:
+          context: .
+          file: ./server/Dockerfile
+          platforms: linux/amd64,linux/arm64
+          push: true
+          tags: ${{ steps.meta.outputs.tags }}
+          labels: ${{ steps.meta.outputs.labels }}
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+
+  # Build agent binaries for Linux
+  agent-binaries:
+    runs-on: buildjet-4vcpu-ubuntu-2204
+    permissions:
+      contents: write
+
+    strategy:
+      matrix:
+        include:
+          - goos: linux
+            goarch: amd64
+            suffix: linux-amd64
+          - goos: linux
+            goarch: arm64
+            suffix: linux-arm64
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up Go
+        uses: actions/setup-go@v5
+        with:
+          go-version: '1.24'
+
+      - name: Download dependencies
+        working-directory: ./agent
+        run: go mod download
+
+      - name: Build agent
+        working-directory: ./agent
+        env:
+          CGO_ENABLED: 0
+          GOOS: ${{ matrix.goos }}
+          GOARCH: ${{ matrix.goarch }}
+        run: |
+          VERSION=${GITHUB_REF#refs/tags/}
+          COMMIT=${GITHUB_SHA::8}
+          BUILD_TIME=$(date -u +"%Y-%m-%dT%H:%M:%SZ")
+          go build -ldflags="-s -w -X main.Version=${VERSION} -X main.GitCommit=${COMMIT} -X main.BuildTime=${BUILD_TIME}" -o pullbase-agent-${{ matrix.suffix }}
+
+      - name: Create checksum
+        working-directory: ./agent
+        run: sha256sum pullbase-agent-${{ matrix.suffix }} > pullbase-agent-${{ matrix.suffix }}.sha256
+
+      - name: Upload artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: pullbase-agent-${{ matrix.suffix }}
+          path: |
+            agent/pullbase-agent-${{ matrix.suffix }}
+            agent/pullbase-agent-${{ matrix.suffix }}.sha256
+
+  # Create GitHub Release with all artifacts
+  release:
+    runs-on: buildjet-4vcpu-ubuntu-2204
+    needs: [docker, agent-binaries]
+    permissions:
+      contents: write
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Download all artifacts
+        uses: actions/download-artifact@v4
+        with:
+          path: artifacts
+          merge-multiple: true
+
+      - name: Create Release
+        uses: softprops/action-gh-release@v2
+        with:
+          generate_release_notes: true
+          files: |
+            artifacts/pullbase-agent-*
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
