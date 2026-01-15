@@ -19,20 +19,15 @@ import (
 )
 
 const (
-	// DefaultPostgresImage is the postgres image used in tests
 	DefaultPostgresImage = "docker.io/postgres:17-alpine"
 
-	// DefaultMigrationPath is the default path to migration files
 	DefaultMigrationPath = "file://migrations"
 
-	// DefaultTestTimeout is the default timeout for test operations
 	DefaultTestTimeout = 3 * time.Minute
 
-	// DefaultStartupTimeout is the default timeout for container startup
 	DefaultStartupTimeout = 5 * time.Minute
 )
 
-// TestDB represents a test database instance with cleanup capabilities
 type TestDB struct {
 	*sqlx.DB
 	Container testcontainers.Container
@@ -42,7 +37,6 @@ type TestDB struct {
 	t         testing.TB
 }
 
-// ContainerConfig holds configuration for the postgres container
 type ContainerConfig struct {
 	Database       string
 	Username       string
@@ -51,7 +45,6 @@ type ContainerConfig struct {
 	StartupTimeout time.Duration
 }
 
-// DefaultContainerConfig returns the default container configuration
 func DefaultContainerConfig() ContainerConfig {
 	return ContainerConfig{
 		Database:       "testdb",
@@ -62,7 +55,6 @@ func DefaultContainerConfig() ContainerConfig {
 	}
 }
 
-// StartPostgresContainer starts a PostgreSQL testcontainer and returns connection details
 func StartPostgresContainer(t testing.TB, config ContainerConfig) (*TestDB, error) {
 	t.Helper()
 	ctx := context.Background()
@@ -135,20 +127,17 @@ func StartPostgresContainer(t testing.TB, config ContainerConfig) (*TestDB, erro
 		t:         t,
 	}
 
-	// Register cleanup with t.Cleanup for automatic cleanup
 	t.Cleanup(cleanup)
 
 	return testDB, nil
 }
 
-// Close closes the database connection and terminates the container
 func (tdb *TestDB) Close() {
 	if tdb.cleanup != nil {
 		tdb.cleanup()
 	}
 }
 
-// MustMigrate runs database migrations and fails the test if migrations fail
 func (tdb *TestDB) MustMigrate(migrationPath string) {
 	tdb.t.Helper()
 
@@ -165,24 +154,17 @@ func (tdb *TestDB) MustMigrate(migrationPath string) {
 }
 
 func defaultMigrationPath() string {
-	// Get the absolute path to migrations based on this source file's location
-	// This file is at: server/pkg/testutil/testutil.go
-	// Migrations are at: server/migrations/
-	// The database.migrationPathForDialect will handle adding the dialect subdirectory
 	_, currentFile, _, ok := runtime.Caller(0)
 	if !ok {
-		// Fallback to relative path if we can't determine the source location
 		return "file://migrations"
 	}
 
-	// Navigate from pkg/testutil/ up to server/, then into migrations/
 	serverDir := filepath.Dir(filepath.Dir(filepath.Dir(currentFile)))
 	migrationsDir := filepath.Join(serverDir, "migrations")
 
 	return "file://" + migrationsDir
 }
 
-// setupFallbackSchema creates a minimal schema for tests when migrations fail
 func (tdb *TestDB) setupFallbackSchema() {
 	tdb.t.Helper()
 
@@ -363,7 +345,6 @@ func (tdb *TestDB) setupFallbackSchema() {
 	}
 }
 
-// SetupTestDB is a convenience function that starts a container and runs migrations
 func SetupTestDB(t testing.TB) *TestDB {
 	t.Helper()
 
@@ -373,14 +354,12 @@ func SetupTestDB(t testing.TB) *TestDB {
 		t.Fatalf("Failed to setup test database: %v", err)
 	}
 
-	// Wait for database to be ready before running migrations
 	tdb.WaitForDBConnection()
 
 	tdb.MustMigrate("")
 	return tdb
 }
 
-// SetupTestDBWithConfig is like SetupTestDB but allows custom container config
 func SetupTestDBWithConfig(t testing.TB, config ContainerConfig) *TestDB {
 	t.Helper()
 
@@ -389,30 +368,25 @@ func SetupTestDBWithConfig(t testing.TB, config ContainerConfig) *TestDB {
 		t.Fatalf("Failed to setup test database: %v", err)
 	}
 
-	// Wait for database to be ready before running migrations
 	tdb.WaitForDBConnection()
 
 	tdb.MustMigrate("")
 	return tdb
 }
 
-// Repository returns a database repository instance for the test database
 func (tdb *TestDB) Repository() *database.Repository {
 	return database.NewRepository(tdb.DB, tdb.Dialect)
 }
 
-// EnvironmentRepository returns an environment repository instance for the test database
 func (tdb *TestDB) EnvironmentRepository() *database.EnvironmentRepository {
 	return database.NewEnvironmentRepository(tdb.DB, tdb.Dialect)
 }
 
-// Context returns a context with timeout for test operations
 func (tdb *TestDB) Context() context.Context {
 	ctx, _ := context.WithTimeout(context.Background(), DefaultTestTimeout)
 	return ctx
 }
 
-// ContextWithTimeout returns a context with the specified timeout
 func (tdb *TestDB) ContextWithTimeout(timeout time.Duration) context.Context {
 	ctx, _ := context.WithTimeout(context.Background(), timeout)
 	return ctx
@@ -421,9 +395,6 @@ func (tdb *TestDB) ContextWithTimeout(timeout time.Duration) context.Context {
 var testDBOnce sync.Once
 var sharedTestDB *TestDB
 
-// SharedTestDB returns a shared test database instance for tests that don't need isolation.
-// The database is created once and reused across tests in the same process.
-// Use this only for read-only tests or when test isolation is not important.
 func SharedTestDB(t testing.TB) *TestDB {
 	t.Helper()
 
@@ -434,7 +405,6 @@ func SharedTestDB(t testing.TB) *TestDB {
 	return sharedTestDB
 }
 
-// ResetTables truncates all tables in the test database, useful for test cleanup
 func (tdb *TestDB) ResetTables() error {
 	_, err := tdb.DB.Exec(`
 		TRUNCATE TABLE 
