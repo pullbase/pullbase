@@ -12,12 +12,12 @@ import (
 
 	"github.com/golang-migrate/migrate/v4"
 	"github.com/golang-migrate/migrate/v4/database/postgres"
-	"github.com/golang-migrate/migrate/v4/database/sqlite3"
+	"github.com/golang-migrate/migrate/v4/database/sqlite"
 	_ "github.com/golang-migrate/migrate/v4/source/file"
 	"github.com/jmoiron/sqlx"
 	_ "github.com/lib/pq"
-	_ "github.com/mattn/go-sqlite3"
 	"golang.org/x/crypto/bcrypt"
+	_ "modernc.org/sqlite"
 )
 
 type Config struct {
@@ -92,7 +92,7 @@ func newSQLite(cfg Config) (*sqlx.DB, error) {
 
 	connStr := fmt.Sprintf("%s?_journal_mode=WAL&_foreign_keys=on&_busy_timeout=5000", dbPath)
 
-	db, err := sqlx.Open("sqlite3", connStr)
+	db, err := sqlx.Open("sqlite", connStr)
 	if err != nil {
 		return nil, fmt.Errorf("error opening SQLite database: %w", err)
 	}
@@ -207,12 +207,12 @@ func initPostgresSchema(ctx context.Context, db *sqlx.DB, migrationPath string) 
 }
 
 func initSQLiteSchema(ctx context.Context, db *sqlx.DB, migrationPath string) error {
-	driver, err := sqlite3.WithInstance(db.DB, &sqlite3.Config{})
+	driver, err := sqlite.WithInstance(db.DB, &sqlite.Config{})
 	if err != nil {
 		return fmt.Errorf("error creating SQLite migration driver: %w", err)
 	}
 
-	m, err := migrate.NewWithDatabaseInstance(migrationPath, "sqlite3", driver)
+	m, err := migrate.NewWithDatabaseInstance(migrationPath, "sqlite", driver)
 	if err != nil {
 		return fmt.Errorf("error creating migration instance: %w", err)
 	}
