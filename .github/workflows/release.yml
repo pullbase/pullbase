@@ -226,11 +226,25 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v4
 
-      - name: Download all artifacts
+      - name: Download server artifacts
         uses: actions/download-artifact@v4
         with:
+          pattern: pullbase-server-*
           path: artifacts
           merge-multiple: true
+
+      - name: Download agent artifacts
+        uses: actions/download-artifact@v4
+        with:
+          pattern: pullbase-agent-*
+          path: artifacts
+          merge-multiple: true
+
+      - name: Download migrations
+        uses: actions/download-artifact@v4
+        with:
+          name: migrations
+          path: artifacts
 
       - name: Create Release
         uses: softprops/action-gh-release@v2
