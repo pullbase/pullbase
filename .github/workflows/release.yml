@@ -132,7 +132,7 @@ jobs:
       - name: Upload artifacts
         uses: actions/upload-artifact@v4
         with:
-          name: server-${{ matrix.suffix }}
+          name: pullbase-server-${{ matrix.suffix }}
           path: |
             server/pullbase-server-${{ matrix.suffix }}
             server/pullbase-server-${{ matrix.suffix }}.sha256
