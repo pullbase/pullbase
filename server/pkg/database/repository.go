@@ -55,9 +55,11 @@ func (r *Repository) SupportsReturning() bool {
 	return r.dialect.SupportsReturning()
 }
 
+var BcryptCost = 14
+
 // hashPassword securely hashes a password using bcrypt
 func hashPassword(password string) (string, error) {
-	bytes, err := bcrypt.GenerateFromPassword([]byte(password), 14)
+	bytes, err := bcrypt.GenerateFromPassword([]byte(password), BcryptCost)
 	if err != nil {
 		return "", err
 	}

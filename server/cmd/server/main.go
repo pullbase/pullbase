@@ -430,8 +430,17 @@ func main() {
 				logging.Error("failed to generate self-signed certificates", "error", err)
 				os.Exit(1)
 			}
-			certInfo, _ = os.Stat(certFile)
-			keyInfo, _ = os.Stat(keyFile)
+			var statErr error
+			certInfo, statErr = os.Stat(certFile)
+			if statErr != nil {
+				logging.Error("failed to stat generated certificate", "path", certFile, "error", statErr)
+				os.Exit(1)
+			}
+			keyInfo, statErr = os.Stat(keyFile)
+			if statErr != nil {
+				logging.Error("failed to stat generated key", "path", keyFile, "error", statErr)
+				os.Exit(1)
+			}
 		} else {
 			if certErr != nil && !certMissing {
 				logging.Error("failed to stat TLS certificate", "path", certFile, "error", certErr)

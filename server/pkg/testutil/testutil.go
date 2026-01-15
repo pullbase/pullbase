@@ -76,8 +76,10 @@ func StartPostgresContainer(t testing.TB, config ContainerConfig) (*TestDB, erro
 		postgres.WithUsername(config.Username),
 		postgres.WithPassword(config.Password),
 		testcontainers.WithWaitStrategy(
-			wait.ForListeningPort("5432/tcp").
-				WithStartupTimeout(config.StartupTimeout),
+			wait.ForAll(
+				wait.ForListeningPort("5432/tcp"),
+				wait.ForLog("database system is ready to accept connections").WithOccurrence(2),
+			).WithStartupTimeout(config.StartupTimeout),
 		),
 	)
 	if err != nil {
@@ -106,10 +108,21 @@ func StartPostgresContainer(t testing.TB, config ContainerConfig) (*TestDB, erro
 		SSLMode:      "disable",
 	}
 
-	dbConn, dialect, err := database.New(dbConfig)
+	var dbConn *sqlx.DB
+	var dialect database.Dialect
+	maxRetries := 10
+	for i := 0; i < maxRetries; i++ {
+		dbConn, dialect, err = database.New(dbConfig)
+		if err == nil {
+			break
+		}
+		if i < maxRetries-1 {
+			time.Sleep(time.Duration(i+1) * 500 * time.Millisecond)
+		}
+	}
 	if err != nil {
 		container.Terminate(ctx)
-		return nil, fmt.Errorf("failed to connect to test database: %w", err)
+		return nil, fmt.Errorf("failed to connect to test database after %d retries: %w", maxRetries, err)
 	}
 
 	cleanup := func() {
