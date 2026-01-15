@@ -56,6 +56,114 @@ jobs:
           cache-from: type=gha
           cache-to: type=gha,mode=max
 
+  # Build server binaries for Linux (bare-metal deployment)
+  server-binaries:
+    runs-on: buildjet-4vcpu-ubuntu-2204
+    permissions:
+      contents: write
+
+    strategy:
+      matrix:
+        include:
+          - goos: linux
+            goarch: amd64
+            suffix: linux-amd64
+          - goos: linux
+            goarch: arm64
+            suffix: linux-arm64
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up Go
+        uses: actions/setup-go@v5
+        with:
+          go-version: '1.24'
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+
+      - name: Build web UI
+        working-directory: ./web
+        run: |
+          npm ci
+          npm run build
+
+      - name: Copy UI to embed directory
+        run: |
+          mkdir -p server/pkg/server/ui
+          cp -r web/dist/* server/pkg/server/ui/
+
+      - name: Download server dependencies
+        working-directory: ./server
+        run: go mod download
+
+      - name: Build server
+        working-directory: ./server
+        env:
+          CGO_ENABLED: 0
+          GOOS: ${{ matrix.goos }}
+          GOARCH: ${{ matrix.goarch }}
+        run: |
+          VERSION=${GITHUB_REF#refs/tags/}
+          COMMIT=${GITHUB_SHA::8}
+          BUILD_TIME=$(date -u +"%Y-%m-%dT%H:%M:%SZ")
+          go build -ldflags="-s -w -X main.Version=${VERSION} -X main.GitCommit=${COMMIT} -X main.BuildTime=${BUILD_TIME}" -o pullbase-server-${{ matrix.suffix }} ./cmd/server
+
+      - name: Build pullbasectl
+        working-directory: ./server
+        env:
+          CGO_ENABLED: 0
+          GOOS: ${{ matrix.goos }}
+          GOARCH: ${{ matrix.goarch }}
+        run: |
+          VERSION=${GITHUB_REF#refs/tags/}
+          COMMIT=${GITHUB_SHA::8}
+          BUILD_TIME=$(date -u +"%Y-%m-%dT%H:%M:%SZ")
+          go build -ldflags="-s -w -X main.Version=${VERSION} -X main.GitCommit=${COMMIT} -X main.BuildTime=${BUILD_TIME}" -o pullbasectl-${{ matrix.suffix }} ./cmd/pullbasectl
+
+      - name: Create checksums
+        working-directory: ./server
+        run: |
+          sha256sum pullbase-server-${{ matrix.suffix }} > pullbase-server-${{ matrix.suffix }}.sha256
+          sha256sum pullbasectl-${{ matrix.suffix }} > pullbasectl-${{ matrix.suffix }}.sha256
+
+      - name: Upload artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: server-${{ matrix.suffix }}
+          path: |
+            server/pullbase-server-${{ matrix.suffix }}
+            server/pullbase-server-${{ matrix.suffix }}.sha256
+            server/pullbasectl-${{ matrix.suffix }}
+            server/pullbasectl-${{ matrix.suffix }}.sha256
+
+  # Package migrations for bare-metal deployment
+  migrations:
+    runs-on: buildjet-4vcpu-ubuntu-2204
+    permissions:
+      contents: write
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Package migrations
+        run: |
+          tar -czvf migrations.tar.gz -C server/migrations .
+          sha256sum migrations.tar.gz > migrations.tar.gz.sha256
+
+      - name: Upload artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: migrations
+          path: |
+            migrations.tar.gz
+            migrations.tar.gz.sha256
+
   # Build agent binaries for Linux
   agent-binaries:
     runs-on: buildjet-4vcpu-ubuntu-2204
@@ -112,7 +220,7 @@ jobs:
   # Create GitHub Release with all artifacts
   release:
     runs-on: buildjet-4vcpu-ubuntu-2204
-    needs: [docker, agent-binaries]
+    needs: [docker, server-binaries, migrations, agent-binaries]
     permissions:
       contents: write
 
@@ -131,6 +239,9 @@ jobs:
         with:
           generate_release_notes: true
           files: |
+            artifacts/pullbase-server-*
+            artifacts/pullbasectl-*
             artifacts/pullbase-agent-*
+            artifacts/migrations.tar.gz*
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
