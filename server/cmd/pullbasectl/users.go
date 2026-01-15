@@ -11,6 +11,7 @@ import (
 	"strings"
 	"unicode/utf8"
 
+	"github.com/pullbase/pullbase/server/pkg/auth"
 	"github.com/pullbase/pullbase/server/pkg/models"
 )
 
@@ -190,8 +191,8 @@ func runUsersCreate(args []string) error {
 	if passwordValue == "" {
 		return errors.New("--new-password or --new-password-file must be provided")
 	}
-	if utf8.RuneCountInString(passwordValue) < bootstrapPasswordMinLength {
-		return fmt.Errorf("new user password must be at least %d characters long", bootstrapPasswordMinLength)
+	if utf8.RuneCountInString(passwordValue) < auth.BootstrapPasswordMinLength {
+		return fmt.Errorf("new user password must be at least %d characters long", auth.BootstrapPasswordMinLength)
 	}
 
 	roleValue := strings.TrimSpace(*role)

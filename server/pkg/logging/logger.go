@@ -8,6 +8,8 @@ import (
 	"strings"
 )
 
+type Logger = slog.Logger
+
 type contextKey string
 
 const loggerKey contextKey = "logger"

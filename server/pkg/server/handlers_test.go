@@ -378,7 +378,7 @@ func TestLoginHandler(t *testing.T) {
 			require.NoError(t, err, "Request failed")
 			defer resp.Body.Close()
 
-			assert.Equal(t, http.StatusBadRequest, resp.StatusCode, "Expected error for nonexistent server")
+			assert.Equal(t, http.StatusNotFound, resp.StatusCode, "Expected error for nonexistent server")
 		})
 
 		t.Run("Nonexistent Environment ID", func(t *testing.T) {
@@ -395,7 +395,7 @@ func TestLoginHandler(t *testing.T) {
 			require.NoError(t, err, "Request failed")
 			defer resp.Body.Close()
 
-			assert.Equal(t, http.StatusBadRequest, resp.StatusCode, "Expected error for nonexistent environment")
+			assert.Equal(t, http.StatusNotFound, resp.StatusCode, "Expected error for nonexistent environment")
 		})
 	})
 }

@@ -125,8 +125,12 @@ func TestSendNotification_AllRetriesFail(t *testing.T) {
 }
 
 func TestSendNotification_ContextCancelled(t *testing.T) {
+	var attempts int32
 	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		time.Sleep(100 * time.Millisecond)
+		if atomic.AddInt32(&attempts, 1) == 1 {
+			w.WriteHeader(http.StatusInternalServerError)
+			return
+		}
 		w.WriteHeader(http.StatusOK)
 	}))
 	defer server.Close()
@@ -134,12 +138,12 @@ func TestSendNotification_ContextCancelled(t *testing.T) {
 	svc := NewServiceWithConfig(5*time.Second, 3, 50*time.Millisecond)
 	payload := BuildTestPayload(1, "test-env")
 
-	ctx, cancel := context.WithCancel(context.Background())
-	cancel()
+	ctx, cancel := context.WithTimeout(context.Background(), 25*time.Millisecond)
+	defer cancel()
 
 	err := svc.SendNotification(ctx, server.URL, payload)
 	if err == nil {
-		t.Fatal("expected error for cancelled context")
+		t.Fatal("expected error for context timeout during retry/backoff")
 	}
 }
 

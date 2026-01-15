@@ -3,12 +3,13 @@ package config
 import (
 	"encoding/json"
 	"fmt"
-	"log/slog"
 	"os"
 	"path/filepath"
 	"strconv"
 	"strings"
 	"time"
+
+	"github.com/pullbase/pullbase/server/pkg/logging"
 )
 
 const DefaultGitHubAPIBaseURL = "https://api.github.com"
@@ -71,7 +72,7 @@ type BootstrapConfig struct {
 // LoadConfig loads the configuration from a JSON file and applies environment variable overrides
 func LoadConfig(path string) (*Config, error) {
 	if _, err := os.Stat(path); os.IsNotExist(err) {
-		slog.Info("config file not found, creating default", "path", path)
+		logging.Info("config file not found, creating default", "path", path)
 		if err := CreateDefaultConfig(path); err != nil {
 			return nil, fmt.Errorf("failed to create default config file: %w", err)
 		}
@@ -127,7 +128,7 @@ func applyEnvOverrides(config *Config) {
 		if port, err := strconv.Atoi(portStr); err == nil {
 			config.Database.Port = port
 		} else {
-			slog.Warn("invalid PULLBASE_DB_PORT value, using config file value", "value", portStr, "error", err)
+			logging.Warn("invalid PULLBASE_DB_PORT value, using config file value", "value", portStr, "error", err)
 		}
 	}
 	if user := os.Getenv("PULLBASE_DB_USER"); user != "" {
@@ -147,7 +148,7 @@ func applyEnvOverrides(config *Config) {
 		if port, err := strconv.Atoi(serverPortStr); err == nil {
 			config.Server.Port = port
 		} else {
-			slog.Warn("invalid PULLBASE_SERVER_PORT value, using config file value", "value", serverPortStr, "error", err)
+			logging.Warn("invalid PULLBASE_SERVER_PORT value, using config file value", "value", serverPortStr, "error", err)
 		}
 	}
 	if serverHost := os.Getenv("PULLBASE_SERVER_HOST"); serverHost != "" {
@@ -158,7 +159,7 @@ func applyEnvOverrides(config *Config) {
 		if enabled, err := strconv.ParseBool(tlsEnabledStr); err == nil {
 			config.TLS.Enabled = enabled
 		} else {
-			slog.Warn("invalid PULLBASE_TLS_ENABLED value, using config file value", "value", tlsEnabledStr, "error", err)
+			logging.Warn("invalid PULLBASE_TLS_ENABLED value, using config file value", "value", tlsEnabledStr, "error", err)
 		}
 	}
 	if tlsCertPath := os.Getenv("PULLBASE_TLS_CERT_PATH"); tlsCertPath != "" {
@@ -175,7 +176,7 @@ func applyEnvOverrides(config *Config) {
 		if expiry, err := strconv.Atoi(jwtExpiryStr); err == nil {
 			config.JWT.ExpiryHours = expiry
 		} else {
-			slog.Warn("invalid PULLBASE_JWT_EXPIRY_HOURS value, using config file value", "value", jwtExpiryStr, "error", err)
+			logging.Warn("invalid PULLBASE_JWT_EXPIRY_HOURS value, using config file value", "value", jwtExpiryStr, "error", err)
 		}
 	}
 
@@ -186,14 +187,14 @@ func applyEnvOverrides(config *Config) {
 		if interval, err := strconv.Atoi(gitIntervalStr); err == nil {
 			config.Git.PollInterval = time.Duration(interval) * time.Second
 		} else {
-			slog.Warn("invalid PULLBASE_GIT_POLL_INTERVAL value, using config file value", "value", gitIntervalStr, "error", err)
+			logging.Warn("invalid PULLBASE_GIT_POLL_INTERVAL value, using config file value", "value", gitIntervalStr, "error", err)
 		}
 	}
 	if gitEnabledStr := os.Getenv("PULLBASE_GIT_ENABLED"); gitEnabledStr != "" {
 		if enabled, err := strconv.ParseBool(gitEnabledStr); err == nil {
 			config.Git.Enabled = enabled
 		} else {
-			slog.Warn("invalid PULLBASE_GIT_ENABLED value, using config file value", "value", gitEnabledStr, "error", err)
+			logging.Warn("invalid PULLBASE_GIT_ENABLED value, using config file value", "value", gitEnabledStr, "error", err)
 		}
 	}
 
@@ -201,7 +202,7 @@ func applyEnvOverrides(config *Config) {
 		if appID, err := strconv.ParseInt(appIDStr, 10, 64); err == nil {
 			config.GitHubApp.AppID = appID
 		} else {
-			slog.Warn("invalid PULLBASE_GITHUB_APP_ID value, using config file value", "value", appIDStr, "error", err)
+			logging.Warn("invalid PULLBASE_GITHUB_APP_ID value, using config file value", "value", appIDStr, "error", err)
 		}
 	}
 	if keyPath := os.Getenv("PULLBASE_GITHUB_APP_PRIVATE_KEY_PATH"); keyPath != "" {
@@ -242,7 +243,7 @@ func resolveDatabaseDialect(config *Config) string {
 	case "sqlite", "sqlite3", "":
 		return "sqlite"
 	default:
-		slog.Warn("unknown database type, defaulting to sqlite", "type", dbType)
+		logging.Warn("unknown database type, defaulting to sqlite", "type", dbType)
 		return "sqlite"
 	}
 }

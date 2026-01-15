@@ -1,0 +1,2 @@
+-- Note: SQLite cannot modify CHECK constraints after table creation.
+-- This is a no-op for SQLite.

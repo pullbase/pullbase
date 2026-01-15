@@ -3,10 +3,12 @@ package database
 import (
 	"context"
 	"fmt"
-	"log/slog"
 	"os"
 	"path/filepath"
+	"strings"
 	"time"
+
+	"github.com/pullbase/pullbase/server/pkg/logging"
 
 	"github.com/golang-migrate/migrate/v4"
 	"github.com/golang-migrate/migrate/v4/database/postgres"
@@ -71,7 +73,7 @@ func newPostgres(cfg Config) (*sqlx.DB, error) {
 		return nil, fmt.Errorf("error connecting to PostgreSQL: %w", err)
 	}
 
-	slog.Info("connected to PostgreSQL database", "host", cfg.Host, "database", cfg.DatabaseName)
+	logging.Info("connected to PostgreSQL database", "host", cfg.Host, "database", cfg.DatabaseName)
 	return db, nil
 }
 
@@ -106,7 +108,7 @@ func newSQLite(cfg Config) (*sqlx.DB, error) {
 		return nil, fmt.Errorf("error connecting to SQLite: %w", err)
 	}
 
-	slog.Info("connected to SQLite database", "path", dbPath)
+	logging.Info("connected to SQLite database", "path", dbPath)
 	return db, nil
 }
 
@@ -116,14 +118,31 @@ func CheckPassword(password, hash string) bool {
 }
 
 func InitSchema(ctx context.Context, db *sqlx.DB, dialect Dialect, migrationPath string) error {
+	path := migrationPathForDialect(migrationPath, dialect)
 	switch dialect {
 	case DialectPostgres:
-		return initPostgresSchema(ctx, db, migrationPath)
+		return initPostgresSchema(ctx, db, path)
 	case DialectSQLite:
-		return initSQLiteSchema(ctx, db, migrationPath)
+		return initSQLiteSchema(ctx, db, path)
 	default:
-		return initSQLiteSchema(ctx, db, migrationPath)
+		return initSQLiteSchema(ctx, db, path)
 	}
+}
+
+func migrationPathForDialect(migrationPath string, dialect Dialect) string {
+	if migrationPath == "" {
+		return ""
+	}
+	const filePrefix = "file://"
+	clean := migrationPath
+	if strings.HasPrefix(migrationPath, filePrefix) {
+		clean = migrationPath[len(filePrefix):]
+	}
+	candidate := filepath.Join(clean, string(dialect))
+	if _, err := os.Stat(candidate); err == nil {
+		return filePrefix + candidate
+	}
+	return migrationPath
 }
 
 func initPostgresSchema(ctx context.Context, db *sqlx.DB, migrationPath string) error {
@@ -141,7 +160,7 @@ func initPostgresSchema(ctx context.Context, db *sqlx.DB, migrationPath string) 
 		return fmt.Errorf("error running PostgreSQL migrations: %w", err)
 	}
 
-	slog.Info("PostgreSQL schema initialized successfully")
+	logging.Info("PostgreSQL schema initialized successfully")
 	return nil
 }
 
@@ -160,6 +179,6 @@ func initSQLiteSchema(ctx context.Context, db *sqlx.DB, migrationPath string) er
 		return fmt.Errorf("error running SQLite migrations: %w", err)
 	}
 
-	slog.Info("SQLite schema initialized successfully")
+	logging.Info("SQLite schema initialized successfully")
 	return nil
 }

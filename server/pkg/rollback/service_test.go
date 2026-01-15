@@ -7,10 +7,11 @@ import (
 	"testing"
 	"time"
 
+	"os"
+
+	"github.com/pullbase/pullbase/server/pkg/logging"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/mock"
-	"log/slog"
-	"os"
 
 	"github.com/pullbase/pullbase/server/pkg/models"
 )
@@ -90,7 +91,7 @@ func (m *MockGitMonitor) CheckoutCommit(ctx context.Context, repoURL, commit str
 
 func TestService_InitiateRollback(t *testing.T) {
 	t.Parallel()
-	
+
 	tests := []struct {
 		name           string
 		request        *RollbackRequest
@@ -194,10 +195,10 @@ func TestService_InitiateRollback(t *testing.T) {
 		tt := tt
 		t.Run(tt.name, func(t *testing.T) {
 			t.Parallel()
-			
+
 			mockRepo := new(MockRepository)
 			mockGit := new(MockGitMonitor)
-			logger := slog.New(slog.NewTextHandler(os.Stdout, nil))
+			logger := logging.NewLogger(logging.Options{Format: "text", Output: os.Stdout})
 
 			var wg sync.WaitGroup
 			if tt.name == "successful rollback" {
@@ -242,7 +243,7 @@ func stringPtr(s string) *string {
 
 func TestService_ValidateRollbackRequest(t *testing.T) {
 	t.Parallel()
-	
+
 	service := NewService(nil, nil, nil)
 
 	tests := []struct {
@@ -316,7 +317,7 @@ func TestService_ValidateRollbackRequest(t *testing.T) {
 		tt := tt
 		t.Run(tt.name, func(t *testing.T) {
 			t.Parallel()
-			
+
 			err := service.ValidateRollbackRequest(context.Background(), tt.request)
 
 			if tt.expectError {
@@ -331,9 +332,9 @@ func TestService_ValidateRollbackRequest(t *testing.T) {
 
 func TestService_GetRollbackStatus(t *testing.T) {
 	t.Parallel()
-	
+
 	mockRepo := new(MockRepository)
-	logger := slog.New(slog.NewTextHandler(os.Stdout, nil))
+	logger := logging.NewLogger(logging.Options{Format: "text", Output: os.Stdout})
 	service := NewService(mockRepo, nil, logger)
 
 	expectedEvent := &models.RollbackEvent{
@@ -358,9 +359,9 @@ func TestService_GetRollbackStatus(t *testing.T) {
 
 func TestService_ListRollbacks(t *testing.T) {
 	t.Parallel()
-	
+
 	mockRepo := new(MockRepository)
-	logger := slog.New(slog.NewTextHandler(os.Stdout, nil))
+	logger := logging.NewLogger(logging.Options{Format: "text", Output: os.Stdout})
 	service := NewService(mockRepo, nil, logger)
 
 	expectedRollbacks := []*models.RollbackEvent{
@@ -394,9 +395,9 @@ func TestService_ListRollbacks(t *testing.T) {
 
 func TestService_GetAvailableCommits(t *testing.T) {
 	t.Parallel()
-	
+
 	mockRepo := new(MockRepository)
-	logger := slog.New(slog.NewTextHandler(os.Stdout, nil))
+	logger := logging.NewLogger(logging.Options{Format: "text", Output: os.Stdout})
 	service := NewService(mockRepo, nil, logger)
 
 	expectedCommits := []*models.CommitInfo{

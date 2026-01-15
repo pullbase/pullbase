@@ -14,6 +14,8 @@ import (
 	"strings"
 	"time"
 	"unicode/utf8"
+
+	"github.com/pullbase/pullbase/server/pkg/auth"
 )
 
 type bootstrapAdminResponse struct {
@@ -163,8 +165,8 @@ func runAuthBootstrapAdmin(args []string) error {
 	if pass == "" {
 		return errors.New("--password or --password-file must be provided")
 	}
-	if utf8.RuneCountInString(pass) < bootstrapPasswordMinLength {
-		return fmt.Errorf("password must be at least %d characters long", bootstrapPasswordMinLength)
+	if utf8.RuneCountInString(pass) < auth.BootstrapPasswordMinLength {
+		return fmt.Errorf("password must be at least %d characters long", auth.BootstrapPasswordMinLength)
 	}
 
 	client, err := newHTTPClient(strings.TrimSpace(*caCertPath), *insecureSkipVerify)

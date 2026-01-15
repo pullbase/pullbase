@@ -9,7 +9,6 @@ import (
 	"errors"
 	"fmt"
 	"io"
-	"log/slog"
 	"net/http"
 	"slices"
 	"strconv"
@@ -19,18 +18,19 @@ import (
 	"github.com/go-chi/chi/v5"
 	"github.com/pullbase/pullbase/server/pkg/database"
 	"github.com/pullbase/pullbase/server/pkg/gitmonitor"
+	"github.com/pullbase/pullbase/server/pkg/logging"
 	"github.com/pullbase/pullbase/server/pkg/models"
 )
 
 // WebhookHandlers handles webhook-related HTTP requests
 type WebhookHandlers struct {
 	monitor *gitmonitor.EnvironmentMonitor
-	logger  *slog.Logger
+	logger  *logging.Logger
 	audit   func(r *http.Request, action, resourceType, resourceID string, details interface{})
 }
 
 // NewWebhookHandlers creates new webhook handlers
-func NewWebhookHandlers(monitor *gitmonitor.EnvironmentMonitor, logger *slog.Logger) *WebhookHandlers {
+func NewWebhookHandlers(monitor *gitmonitor.EnvironmentMonitor, logger *logging.Logger) *WebhookHandlers {
 	return &WebhookHandlers{
 		monitor: monitor,
 		logger:  logger,
@@ -381,23 +381,23 @@ func (h *WebhookHandlers) ListEnvironments(w http.ResponseWriter, r *http.Reques
 	response := make([]map[string]interface{}, 0, len(environments))
 	for _, env := range environments {
 		envData := map[string]interface{}{
-			"id":                     env.ID,
-			"name":                   env.Name,
-			"repo_url":               env.RepoURL,
-			"branch":                 env.Branch,
-			"deploy_path":            env.DeployPath,
-			"provider":               env.Provider,
-			"installation_id":        env.InstallationID,
-			"app_slug":               env.AppSlug,
-			"repository_id":          env.RepositoryID,
+			"id":                       env.ID,
+			"name":                     env.Name,
+			"repo_url":                 env.RepoURL,
+			"branch":                   env.Branch,
+			"deploy_path":              env.DeployPath,
+			"provider":                 env.Provider,
+			"installation_id":          env.InstallationID,
+			"app_slug":                 env.AppSlug,
+			"repository_id":            env.RepositoryID,
 			"notification_webhook_url": env.NotificationWebhookURL,
-			"status":                 env.Status,
-			"auto_reconcile":         env.AutoReconcile,
-			"deployed_commit":        env.DeployedCommit,
-			"last_webhook_at":        env.LastWebhookAt,
-			"retry_count":            env.RetryCount,
-			"created_at":             env.CreatedAt,
-			"updated_at":             env.UpdatedAt,
+			"status":                   env.Status,
+			"auto_reconcile":           env.AutoReconcile,
+			"deployed_commit":          env.DeployedCommit,
+			"last_webhook_at":          env.LastWebhookAt,
+			"retry_count":              env.RetryCount,
+			"created_at":               env.CreatedAt,
+			"updated_at":               env.UpdatedAt,
 		}
 
 		// Add webhook status if available
@@ -453,23 +453,23 @@ func (h *WebhookHandlers) GetEnvironment(w http.ResponseWriter, r *http.Request)
 	webhookStatus, _ := h.monitor.GetWebhookStatus(environmentID)
 
 	response := map[string]interface{}{
-		"id":                     foundEnv.ID,
-		"name":                   foundEnv.Name,
-		"repo_url":               foundEnv.RepoURL,
-		"branch":                 foundEnv.Branch,
-		"deploy_path":            foundEnv.DeployPath,
-		"provider":               foundEnv.Provider,
-		"installation_id":        foundEnv.InstallationID,
-		"app_slug":               foundEnv.AppSlug,
-		"repository_id":          foundEnv.RepositoryID,
+		"id":                       foundEnv.ID,
+		"name":                     foundEnv.Name,
+		"repo_url":                 foundEnv.RepoURL,
+		"branch":                   foundEnv.Branch,
+		"deploy_path":              foundEnv.DeployPath,
+		"provider":                 foundEnv.Provider,
+		"installation_id":          foundEnv.InstallationID,
+		"app_slug":                 foundEnv.AppSlug,
+		"repository_id":            foundEnv.RepositoryID,
 		"notification_webhook_url": foundEnv.NotificationWebhookURL,
-		"status":                 foundEnv.Status,
-		"auto_reconcile":         foundEnv.AutoReconcile,
-		"deployed_commit":        foundEnv.DeployedCommit,
-		"last_webhook_at":        foundEnv.LastWebhookAt,
-		"retry_count":            foundEnv.RetryCount,
-		"created_at":             foundEnv.CreatedAt,
-		"updated_at":             foundEnv.UpdatedAt,
+		"status":                   foundEnv.Status,
+		"auto_reconcile":           foundEnv.AutoReconcile,
+		"deployed_commit":          foundEnv.DeployedCommit,
+		"last_webhook_at":          foundEnv.LastWebhookAt,
+		"retry_count":              foundEnv.RetryCount,
+		"created_at":               foundEnv.CreatedAt,
+		"updated_at":               foundEnv.UpdatedAt,
 	}
 
 	if webhookStatus != nil {

@@ -4,13 +4,15 @@ package testutil
 import (
 	"context"
 	"fmt"
-	"log/slog"
+	"path/filepath"
+	"runtime"
 	"sync"
 	"testing"
 	"time"
 
-	"github.com/pullbase/pullbase/server/pkg/database"
 	"github.com/jmoiron/sqlx"
+	"github.com/pullbase/pullbase/server/pkg/database"
+	"github.com/pullbase/pullbase/server/pkg/logging"
 	"github.com/testcontainers/testcontainers-go"
 	"github.com/testcontainers/testcontainers-go/modules/postgres"
 	"github.com/testcontainers/testcontainers-go/wait"
@@ -21,7 +23,7 @@ const (
 	DefaultPostgresImage = "docker.io/postgres:17-alpine"
 
 	// DefaultMigrationPath is the default path to migration files
-	DefaultMigrationPath = "file://../../migrations"
+	DefaultMigrationPath = "file://migrations"
 
 	// DefaultTestTimeout is the default timeout for test operations
 	DefaultTestTimeout = 3 * time.Minute
@@ -120,7 +122,7 @@ func StartPostgresContainer(t testing.TB, config ContainerConfig) (*TestDB, erro
 			dbConn.Close()
 		}
 		if err := container.Terminate(ctx); err != nil {
-			slog.Warn("could not terminate container", "error", err)
+			logging.Warn("could not terminate container", "error", err)
 		}
 	}
 
@@ -151,14 +153,33 @@ func (tdb *TestDB) MustMigrate(migrationPath string) {
 	tdb.t.Helper()
 
 	if migrationPath == "" {
-		migrationPath = DefaultMigrationPath
+		migrationPath = defaultMigrationPath()
 	}
+	tdb.t.Logf("using migration path: %s", migrationPath)
 
 	ctx := context.Background()
 	if err := database.InitSchema(ctx, tdb.DB, tdb.Dialect, migrationPath); err != nil {
 		tdb.t.Logf("Migration failed: %v - falling back to manual schema", err)
 		tdb.setupFallbackSchema()
 	}
+}
+
+func defaultMigrationPath() string {
+	// Get the absolute path to migrations based on this source file's location
+	// This file is at: server/pkg/testutil/testutil.go
+	// Migrations are at: server/migrations/
+	// The database.migrationPathForDialect will handle adding the dialect subdirectory
+	_, currentFile, _, ok := runtime.Caller(0)
+	if !ok {
+		// Fallback to relative path if we can't determine the source location
+		return "file://migrations"
+	}
+
+	// Navigate from pkg/testutil/ up to server/, then into migrations/
+	serverDir := filepath.Dir(filepath.Dir(filepath.Dir(currentFile)))
+	migrationsDir := filepath.Join(serverDir, "migrations")
+
+	return "file://" + migrationsDir
 }
 
 // setupFallbackSchema creates a minimal schema for tests when migrations fail
@@ -180,17 +201,18 @@ func (tdb *TestDB) setupFallbackSchema() {
 		-- Create environments table
 		CREATE TABLE IF NOT EXISTS environments (
 			id SERIAL PRIMARY KEY,
-name TEXT NOT NULL UNIQUE,
-repo_url TEXT NOT NULL,
-branch TEXT NOT NULL DEFAULT 'main',
-deploy_path TEXT NOT NULL DEFAULT 'config.yaml',
-provider TEXT NOT NULL CHECK (provider = 'github'),
-github_installation_id BIGINT NOT NULL DEFAULT 0,
+	name TEXT NOT NULL UNIQUE,
+	repo_url TEXT NOT NULL,
+	branch TEXT NOT NULL DEFAULT 'main',
+	deploy_path TEXT NOT NULL DEFAULT 'config.yaml',
+	provider TEXT NOT NULL CHECK (provider = 'github'),
+	github_installation_id BIGINT NOT NULL DEFAULT 0,
 	github_app_slug TEXT,
 	github_repository_id BIGINT,
 	webhook_secret TEXT NOT NULL,
 	webhook_id TEXT,
 	webhook_url TEXT NOT NULL,
+	notification_webhook_url TEXT,
 			status TEXT NOT NULL DEFAULT 'pending' CHECK (status IN ('pending', 'active', 'error', 'fallback')),
 			auto_reconcile BOOLEAN NOT NULL DEFAULT true,
 			deployed_commit TEXT,
@@ -205,9 +227,9 @@ github_installation_id BIGINT NOT NULL DEFAULT 0,
 		CREATE TABLE IF NOT EXISTS servers (
 			id VARCHAR(255) PRIMARY KEY,
 			name VARCHAR(255) NOT NULL,
-			repo_url VARCHAR(1024) NOT NULL,
-			branch VARCHAR(255) NOT NULL,
-			deploy_path VARCHAR(1024) NOT NULL,
+			repo_url VARCHAR(1024) NOT NULL DEFAULT '',
+			branch VARCHAR(255) NOT NULL DEFAULT 'main',
+			deploy_path VARCHAR(1024) NOT NULL DEFAULT 'config.yaml',
 			target_commit_hash VARCHAR(255),
 			auto_reconcile BOOLEAN NOT NULL DEFAULT FALSE,
 			environment_id INTEGER,
@@ -225,9 +247,15 @@ github_installation_id BIGINT NOT NULL DEFAULT 0,
 			is_drifted BOOLEAN NOT NULL DEFAULT FALSE,
 			status VARCHAR(50) NOT NULL,
 			error_message TEXT,
+			agent_version TEXT,
+			drift_details JSONB,
 			agent_timestamp TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
 			FOREIGN KEY (server_id) REFERENCES servers(id) ON DELETE CASCADE
 		);
+
+		-- Add missing columns if not present
+		ALTER TABLE environments ADD COLUMN IF NOT EXISTS notification_webhook_url TEXT;
+
 
 		-- Create agent_tokens table
 		CREATE TABLE IF NOT EXISTS agent_tokens (
@@ -275,7 +303,8 @@ github_installation_id BIGINT NOT NULL DEFAULT 0,
 			reason TEXT,
 			created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
 			completed_at TIMESTAMP,
-			error_message TEXT
+			error_message TEXT,
+			updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 		);
 
 		-- Create events table
@@ -316,10 +345,18 @@ github_installation_id BIGINT NOT NULL DEFAULT 0,
 			EXECUTE FUNCTION update_updated_at_column();
 
 		DROP TRIGGER IF EXISTS update_servers_updated_at ON servers;
-		CREATE TRIGGER update_servers_updated_at 
+		CREATE TRIGGER update_servers_updated_at
 			BEFORE UPDATE ON servers
 			FOR EACH ROW
 			EXECUTE FUNCTION update_updated_at_column();
+
+		-- Create schema_migrations table for migration tracking
+		CREATE TABLE IF NOT EXISTS schema_migrations (
+			version BIGINT NOT NULL PRIMARY KEY,
+			dirty BOOLEAN NOT NULL DEFAULT FALSE
+		);
+		-- Insert current migration version (manual schema reflects v22)
+		INSERT INTO schema_migrations (version, dirty) VALUES (22, false) ON CONFLICT DO NOTHING;
 	`)
 	if err != nil {
 		tdb.t.Fatalf("Failed to create fallback schema: %v", err)

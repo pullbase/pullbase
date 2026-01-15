@@ -6,7 +6,6 @@ import (
 	"crypto/subtle"
 	"encoding/json"
 	"errors"
-	"log/slog"
 	"net/http"
 	"os"
 	"regexp"
@@ -20,12 +19,12 @@ import (
 	"github.com/pullbase/pullbase/server/pkg/apierrors"
 	"github.com/pullbase/pullbase/server/pkg/auth"
 	"github.com/pullbase/pullbase/server/pkg/database"
+	"github.com/pullbase/pullbase/server/pkg/logging"
 	"github.com/pullbase/pullbase/server/pkg/models"
 )
 
 const (
-	bootstrapAttemptCooldown   = 2 * time.Second
-	bootstrapPasswordMinLength = 12
+	bootstrapAttemptCooldown = 2 * time.Second
 )
 
 var bootstrapUsernamePattern = regexp.MustCompile(`^[a-zA-Z0-9_.-]{3,64}$`)
@@ -260,6 +259,7 @@ func (a *API) LoginHandler(w http.ResponseWriter, r *http.Request) {
 	} else {
 		tokenString, err = a.Auth.GenerateToken(user)
 		if err != nil {
+			a.log().Error("failed to generate token", "username", req.Username, "error", err)
 			writeAPIError(w, apierrors.Internal("Failed to generate authentication token"))
 			return
 		}
@@ -353,8 +353,8 @@ func (a *API) BootstrapAdminHandler(w http.ResponseWriter, r *http.Request) {
 		writeAPIError(w, apierrors.Validation("Username must be 3-64 characters and contain only letters, numbers, '.', '_' or '-'"))
 		return
 	}
-	if utf8.RuneCountInString(req.Password) < bootstrapPasswordMinLength {
-		writeAPIError(w, apierrors.Validationf("Password must be at least %d characters long", bootstrapPasswordMinLength))
+	if utf8.RuneCountInString(req.Password) < auth.BootstrapPasswordMinLength {
+		writeAPIError(w, apierrors.Validationf("Password must be at least %d characters long", auth.BootstrapPasswordMinLength))
 		return
 	}
 
@@ -482,8 +482,8 @@ func (api *API) CreateUserHandler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	if utf8.RuneCountInString(req.Password) < bootstrapPasswordMinLength {
-		writeAPIError(w, apierrors.Validationf("Password must be at least %d characters long", bootstrapPasswordMinLength))
+	if utf8.RuneCountInString(req.Password) < auth.BootstrapPasswordMinLength {
+		writeAPIError(w, apierrors.Validationf("Password must be at least %d characters long", auth.BootstrapPasswordMinLength))
 		return
 	}
 
@@ -728,7 +728,7 @@ func AuthMiddleware(authService *auth.Service) func(http.Handler) http.Handler {
 				tokenString = cookie.Value
 				claims, err = authService.ValidateToken(tokenString)
 				if err != nil {
-					slog.Warn("invalid session_token cookie", "error", err)
+					logging.Warn("invalid session_token cookie", "error", err)
 
 					http.SetCookie(w, &http.Cookie{
 						Name:     "session_token",
@@ -737,7 +737,7 @@ func AuthMiddleware(authService *auth.Service) func(http.Handler) http.Handler {
 						Expires:  time.Unix(0, 0),
 						MaxAge:   -1,
 						HttpOnly: true,
-						Secure:   r.TLS != nil,
+						Secure:   isRequestSecure(r),
 						SameSite: http.SameSiteLaxMode,
 					})
 				}
@@ -772,6 +772,13 @@ func AuthMiddleware(authService *auth.Service) func(http.Handler) http.Handler {
 			next.ServeHTTP(w, r.WithContext(ctx))
 		})
 	}
+}
+
+func isRequestSecure(r *http.Request) bool {
+	if r.TLS != nil {
+		return true
+	}
+	return strings.EqualFold(r.Header.Get("X-Forwarded-Proto"), "https")
 }
 
 // GetUserClaims retrieves user claims from the request context.

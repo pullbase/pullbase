@@ -397,6 +397,7 @@ func TestRepository_ServerOperations_Extended(t *testing.T) {
 	// Git configuration is inherited from environment, not stored on server
 
 	t.Run("UpdateServer", func(t *testing.T) {
+		before := time.Now()
 		updatedServer := &models.Server{
 			ID:   serverID,
 			Name: "Updated Server Name",
@@ -408,7 +409,7 @@ func TestRepository_ServerOperations_Extended(t *testing.T) {
 		require.NoError(t, err, "Failed to retrieve server after update")
 		require.NotNil(t, retrieved, "Failed to retrieve server after update")
 		assert.Equal(t, "Updated Server Name", retrieved.Name)
-		assert.True(t, retrieved.UpdatedAt.After(retrieved.CreatedAt))
+		assert.True(t, retrieved.UpdatedAt.After(before))
 	})
 
 	t.Run("ListServers", func(t *testing.T) {

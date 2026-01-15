@@ -1,4 +1,3 @@
-basePath: /api/v1
 definitions:
   github_com_pullbase_pullbase_server_pkg_apierrors.Error:
     properties:
@@ -67,6 +66,36 @@ definitions:
       last_used_at:
         type: string
       server_id:
+        type: string
+    type: object
+  github_com_pullbase_pullbase_server_pkg_models.DriftDetails:
+    properties:
+      files:
+        items:
+          $ref: '#/definitions/github_com_pullbase_pullbase_server_pkg_models.DriftItem'
+        type: array
+      packages:
+        items:
+          $ref: '#/definitions/github_com_pullbase_pullbase_server_pkg_models.DriftItem'
+        type: array
+      services:
+        items:
+          $ref: '#/definitions/github_com_pullbase_pullbase_server_pkg_models.DriftItem'
+        type: array
+      summary:
+        type: string
+    type: object
+  github_com_pullbase_pullbase_server_pkg_models.DriftItem:
+    properties:
+      actual:
+        type: string
+      expected:
+        type: string
+      message:
+        type: string
+      name:
+        type: string
+      type:
         type: string
     type: object
   github_com_pullbase_pullbase_server_pkg_models.GitProvider:
@@ -177,9 +206,7 @@ definitions:
       commit_hash:
         type: string
       drift_details:
-        items:
-          type: integer
-        type: array
+        $ref: '#/definitions/github_com_pullbase_pullbase_server_pkg_models.DriftDetails'
       error_message:
         type: string
       is_drifted:
@@ -312,9 +339,7 @@ definitions:
       detected_at:
         type: string
       drift_details:
-        items:
-          type: integer
-        type: array
+        $ref: '#/definitions/github_com_pullbase_pullbase_server_pkg_models.DriftDetails'
       is_drifted:
         type: boolean
       server_id:
@@ -453,19 +478,8 @@ definitions:
       valid:
         type: boolean
     type: object
-host: localhost:8080
 info:
-  contact:
-    name: Pullbase Support
-    url: https://github.com/pullbase/pullbase
-  description: GitOps for Servers - Git-driven configuration management for VMs and
-    bare-metal servers.
-  license:
-    name: MIT
-    url: https://opensource.org/licenses/MIT
-  termsOfService: https://pullbase.io/terms
-  title: Pullbase API
-  version: "1.0"
+  contact: {}
 paths:
   /agent/git-token:
     get:
@@ -1755,15 +1769,4 @@ paths:
       summary: Validate config
       tags:
       - Config
-securityDefinitions:
-  AgentAuth:
-    description: 'Agent token generated when creating a server. Format: "Bearer {token}"'
-    in: header
-    name: Authorization
-    type: apiKey
-  BearerAuth:
-    description: 'JWT token obtained from /api/v1/auth/login. Format: "Bearer {token}"'
-    in: header
-    name: Authorization
-    type: apiKey
 swagger: "2.0"

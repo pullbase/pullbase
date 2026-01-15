@@ -1,0 +1,3 @@
+-- Note: SQLite cannot modify CHECK constraints after table creation.
+-- The constraint was already created with github-only in the initial schema.
+-- This is a no-op for SQLite.

@@ -5,7 +5,6 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
-	"log/slog"
 	"net/http"
 	"strings"
 	"time"
@@ -13,6 +12,7 @@ import (
 	chi "github.com/go-chi/chi/v5"
 	"github.com/pullbase/pullbase/server/pkg/apierrors"
 	"github.com/pullbase/pullbase/server/pkg/database"
+	"github.com/pullbase/pullbase/server/pkg/logging"
 	"github.com/pullbase/pullbase/server/pkg/models"
 	"github.com/pullbase/pullbase/server/pkg/token"
 )
@@ -47,12 +47,12 @@ type AgentGitTokenResponse struct {
 }
 
 type AgentStatusPayload struct {
-	CommitHash   string           `json:"commit_hash"`
-	IsDrifted    bool             `json:"is_drifted"`
-	Status       string           `json:"status"`
-	ErrorMessage *string          `json:"error_message,omitempty"`
-	AgentVersion *string          `json:"agent_version,omitempty"`
-	DriftDetails *json.RawMessage `json:"drift_details,omitempty"`
+	CommitHash   string               `json:"commit_hash"`
+	IsDrifted    bool                 `json:"is_drifted"`
+	Status       string               `json:"status"`
+	ErrorMessage *string              `json:"error_message,omitempty"`
+	AgentVersion *string              `json:"agent_version,omitempty"`
+	DriftDetails *models.DriftDetails `json:"drift_details,omitempty"`
 }
 
 // tokenAttempt records a single git token request attempt
@@ -96,7 +96,7 @@ func AgentAuthMiddleware(repo *database.Repository) func(http.Handler) http.Hand
 					writeAPIError(w, apierrors.Unauthorized("Invalid or expired token"))
 					return
 				}
-				slog.Error("failed to validate agent token", "error", err)
+				logging.Error("failed to validate agent token", "error", err)
 				writeAPIError(w, apierrors.Internal("Failed to validate token"))
 				return
 			}
@@ -105,7 +105,7 @@ func AgentAuthMiddleware(repo *database.Repository) func(http.Handler) http.Hand
 			go func() {
 				ctx := context.Background()
 				if err := repo.UpdateAgentTokenLastUsed(ctx, agentToken.ID); err != nil {
-					slog.Warn("failed to update token last used timestamp", "token_id", agentToken.ID, "error", err)
+					logging.Warn("failed to update token last used timestamp", "token_id", agentToken.ID, "error", err)
 				}
 			}()
 

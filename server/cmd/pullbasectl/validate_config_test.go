@@ -20,7 +20,9 @@ func TestRunValidateConfig(t *testing.T) {
 
 	t.Run("rejects invalid output format", func(t *testing.T) {
 		tmpFile := filepath.Join(t.TempDir(), "config.yaml")
-		os.WriteFile(tmpFile, []byte("packages: []"), 0644)
+		if err := os.WriteFile(tmpFile, []byte("packages: []"), 0644); err != nil {
+			t.Fatalf("failed to write temp file: %v", err)
+		}
 
 		err := runValidateConfig([]string{"--file", tmpFile, "--output", "xml"})
 		if err == nil {
@@ -43,7 +45,9 @@ services:
     state: running
 `
 		tmpFile := filepath.Join(t.TempDir(), "config.yaml")
-		os.WriteFile(tmpFile, []byte(config), 0644)
+		if err := os.WriteFile(tmpFile, []byte(config), 0644); err != nil {
+			t.Fatalf("failed to write temp file: %v", err)
+		}
 
 		err := runValidateConfig([]string{"--file", tmpFile})
 		if err != nil {
@@ -58,7 +62,9 @@ packages:
     state: invalid-state
 `
 		tmpFile := filepath.Join(t.TempDir(), "config.yaml")
-		os.WriteFile(tmpFile, []byte(config), 0644)
+		if err := os.WriteFile(tmpFile, []byte(config), 0644); err != nil {
+			t.Fatalf("failed to write temp file: %v", err)
+		}
 
 		err := runValidateConfig([]string{"--file", tmpFile})
 		if err == nil {
@@ -86,7 +92,9 @@ packages:
     state: present
 `
 		tmpFile := filepath.Join(t.TempDir(), "config.yaml")
-		os.WriteFile(tmpFile, []byte(config), 0644)
+		if err := os.WriteFile(tmpFile, []byte(config), 0644); err != nil {
+			t.Fatalf("failed to write temp file: %v", err)
+		}
 
 		err := runValidateConfig([]string{"--file", tmpFile, "--output", "json"})
 		if err != nil {
@@ -101,7 +109,9 @@ packages:
     state: present
 `
 		tmpFile := filepath.Join(t.TempDir(), "config.yaml")
-		os.WriteFile(tmpFile, []byte(config), 0644)
+		if err := os.WriteFile(tmpFile, []byte(config), 0644); err != nil {
+			t.Fatalf("failed to write temp file: %v", err)
+		}
 
 		err := runValidateConfig([]string{"--file", tmpFile, "--output", "table"})
 		if err != nil {

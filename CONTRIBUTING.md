@@ -28,8 +28,9 @@ Please be respectful and constructive in all interactions. We're building someth
 1. Fork the repository
 2. Create a feature branch from `main`
 3. Make your changes
-4. Ensure tests pass: `go test ./...`
-5. Submit a PR with a clear description
+4. Ensure tests pass (see Testing section below)
+5. Update documentation if the change alters behavior or adds features (docs live at https://github.com/pullbase/docs)
+6. Submit a PR with a clear description
 
 ## Development Setup
 
@@ -52,10 +53,36 @@ cd pullbase
 
 # Build agent
 cd agent && go build -o pullbase-agent
+```
 
-# Run tests
+### Testing
+
+Quick sanity (uses stubs to avoid UI embed):
+
+```bash
+go test -tags=test ./...
+```
+
+Full tests (requires built UI assets for server without stubs):
+
+```bash
+./scripts/build-with-ui.sh   # ensures embedded UI is present
 go test ./...
 ```
+
+Integration tests (require Docker/Postgres, slower):
+
+```bash
+go test -tags=integration ./...
+```
+
+### Documentation & Swagger
+
+- Update relevant docs in https://github.com/pullbase/docs when features or behavior change.
+- Regenerate Swagger artifacts after API changes:
+  ```bash
+  swag init --parseDependency --parseInternal -g cmd/server/main.go -o docs
+  ```
 
 ### Running Locally
 

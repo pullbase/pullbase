@@ -6,10 +6,10 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
-	"log/slog"
 	"net/http"
-	"os"
 	"time"
+
+	"github.com/pullbase/pullbase/server/pkg/logging"
 )
 
 // EventType represents the type of notification event
@@ -40,7 +40,7 @@ type Service struct {
 	client     *http.Client
 	maxRetries int
 	baseDelay  time.Duration
-	logger     *slog.Logger
+	logger     *logging.Logger
 }
 
 // NewService creates a new notification service
@@ -51,7 +51,7 @@ func NewService() *Service {
 		},
 		maxRetries: 3,
 		baseDelay:  1 * time.Second,
-		logger:     slog.New(slog.NewTextHandler(os.Stdout, nil)),
+		logger:     logging.NewLogger(logging.Options{}),
 	}
 }
 
@@ -63,7 +63,7 @@ func NewServiceWithConfig(timeout time.Duration, maxRetries int, baseDelay time.
 		},
 		maxRetries: maxRetries,
 		baseDelay:  baseDelay,
-		logger:     slog.New(slog.NewTextHandler(os.Stdout, nil)),
+		logger:     logging.NewLogger(logging.Options{}),
 	}
 }
 
@@ -136,14 +136,15 @@ func (s *Service) sendRequest(ctx context.Context, webhookURL string, payload []
 	return fmt.Errorf("unexpected status code: %d", resp.StatusCode)
 }
 
-// SendAsync sends a notification asynchronously (fire-and-forget with logging)
-func (s *Service) SendAsync(webhookURL string, payload WebhookPayload) {
+// SendAsync sends a notification asynchronously using the provided context for cancellation.
+// A 30s timeout is applied on top of the caller context to bound retries.
+func (s *Service) SendAsync(ctx context.Context, webhookURL string, payload WebhookPayload) {
 	if webhookURL == "" {
 		return
 	}
 
 	go func() {
-		ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
+		ctx, cancel := context.WithTimeout(ctx, 30*time.Second)
 		defer cancel()
 
 		if err := s.SendNotification(ctx, webhookURL, payload); err != nil {

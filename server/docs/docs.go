@@ -9,15 +9,7 @@ const docTemplate = `{
     "info": {
         "description": "{{escape .Description}}",
         "title": "{{.Title}}",
-        "termsOfService": "https://pullbase.io/terms",
-        "contact": {
-            "name": "Pullbase Support",
-            "url": "https://github.com/pullbase/pullbase"
-        },
-        "license": {
-            "name": "MIT",
-            "url": "https://opensource.org/licenses/MIT"
-        },
+        "contact": {},
         "version": "{{.Version}}"
     },
     "host": "{{.Host}}",
@@ -2099,6 +2091,52 @@ const docTemplate = `{
                 }
             }
         },
+        "github_com_pullbase_pullbase_server_pkg_models.DriftDetails": {
+            "type": "object",
+            "properties": {
+                "files": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/github_com_pullbase_pullbase_server_pkg_models.DriftItem"
+                    }
+                },
+                "packages": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/github_com_pullbase_pullbase_server_pkg_models.DriftItem"
+                    }
+                },
+                "services": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/github_com_pullbase_pullbase_server_pkg_models.DriftItem"
+                    }
+                },
+                "summary": {
+                    "type": "string"
+                }
+            }
+        },
+        "github_com_pullbase_pullbase_server_pkg_models.DriftItem": {
+            "type": "object",
+            "properties": {
+                "actual": {
+                    "type": "string"
+                },
+                "expected": {
+                    "type": "string"
+                },
+                "message": {
+                    "type": "string"
+                },
+                "name": {
+                    "type": "string"
+                },
+                "type": {
+                    "type": "string"
+                }
+            }
+        },
         "github_com_pullbase_pullbase_server_pkg_models.GitProvider": {
             "type": "string",
             "enum": [
@@ -2263,10 +2301,7 @@ const docTemplate = `{
                     "type": "string"
                 },
                 "drift_details": {
-                    "type": "array",
-                    "items": {
-                        "type": "integer"
-                    }
+                    "$ref": "#/definitions/github_com_pullbase_pullbase_server_pkg_models.DriftDetails"
                 },
                 "error_message": {
                     "type": "string"
@@ -2471,10 +2506,7 @@ const docTemplate = `{
                     "type": "string"
                 },
                 "drift_details": {
-                    "type": "array",
-                    "items": {
-                        "type": "integer"
-                    }
+                    "$ref": "#/definitions/github_com_pullbase_pullbase_server_pkg_models.DriftDetails"
                 },
                 "is_drifted": {
                     "type": "boolean"
@@ -2686,31 +2718,17 @@ const docTemplate = `{
                 }
             }
         }
-    },
-    "securityDefinitions": {
-        "AgentAuth": {
-            "description": "Agent token generated when creating a server. Format: \"Bearer {token}\"",
-            "type": "apiKey",
-            "name": "Authorization",
-            "in": "header"
-        },
-        "BearerAuth": {
-            "description": "JWT token obtained from /api/v1/auth/login. Format: \"Bearer {token}\"",
-            "type": "apiKey",
-            "name": "Authorization",
-            "in": "header"
-        }
     }
 }`
 
 // SwaggerInfo holds exported Swagger Info so clients can modify it
 var SwaggerInfo = &swag.Spec{
-	Version:          "1.0",
-	Host:             "localhost:8080",
-	BasePath:         "/api/v1",
+	Version:          "",
+	Host:             "",
+	BasePath:         "",
 	Schemes:          []string{},
-	Title:            "Pullbase API",
-	Description:      "GitOps for Servers - Git-driven configuration management for VMs and bare-metal servers.",
+	Title:            "",
+	Description:      "",
 	InfoInstanceName: "swagger",
 	SwaggerTemplate:  docTemplate,
 	LeftDelim:        "{{",
