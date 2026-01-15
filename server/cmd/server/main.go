@@ -246,6 +246,8 @@ func main() {
 	var environmentMonitor *gitmonitor.EnvironmentMonitor
 	var rollbackGitMonitor rollback.GitMonitor
 	var installationTokenProvider gitmonitor.InstallationTokenProvider
+	logger := logging.NewLogger(logging.Options{Format: "text", Output: os.Stdout})
+
 	if cfg.Git.Enabled {
 		encryptionKeyHex := os.Getenv("PULLBASE_ENCRYPTION_KEY")
 		if encryptionKeyHex == "" {
@@ -276,7 +278,6 @@ func main() {
 		}
 		installationTokenProvider = githubClient
 
-		logger := logging.NewLogger(logging.Options{Format: "text", Output: os.Stdout})
 		webhookRouter := gitmonitor.NewWebhookRouter(logger, nil)
 		webhookManager := gitmonitor.NewWebhookManager(webhookRouter, logger, envRepo)
 
@@ -298,7 +299,6 @@ func main() {
 		logging.Info("git monitor is disabled in configuration")
 	}
 
-	logger := logging.NewLogger(logging.Options{Format: "text", Output: os.Stdout})
 	rollbackService := rollback.NewService(repo, rollbackGitMonitor, logger)
 	rollbackHandlers := server.NewRollbackHandlers(rollbackService)
 

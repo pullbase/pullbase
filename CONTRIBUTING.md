@@ -83,7 +83,7 @@ go test -tags=integration ./...
 - Update relevant docs in https://github.com/pullbase/docs when features or behavior change.
 - Regenerate Swagger artifacts after API changes:
   ```bash
-  swag init --parseDependency --parseInternal -g cmd/server/main.go -o docs
+  swag init --parseDependency --parseInternal -g server/cmd/server/main.go -o server/docs
   ```
 
 ### Running Locally

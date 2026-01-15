@@ -26,6 +26,10 @@ const (
 	DefaultTestTimeout = 3 * time.Minute
 
 	DefaultStartupTimeout = 5 * time.Minute
+
+	// FallbackSchemaVersion is the migration version the fallback schema represents.
+	// Update this when adding new migrations.
+	FallbackSchemaVersion = 22
 )
 
 type TestDB struct {
@@ -336,11 +340,17 @@ func (tdb *TestDB) setupFallbackSchema() {
 			version BIGINT NOT NULL PRIMARY KEY,
 			dirty BOOLEAN NOT NULL DEFAULT FALSE
 		);
-		-- Insert current migration version (manual schema reflects v22)
-		INSERT INTO schema_migrations (version, dirty) VALUES (22, false) ON CONFLICT DO NOTHING;
 	`)
 	if err != nil {
 		tdb.t.Fatalf("Failed to create fallback schema: %v", err)
+	}
+
+	_, err = tdb.DB.Exec(
+		"INSERT INTO schema_migrations (version, dirty) VALUES ($1, false) ON CONFLICT DO NOTHING",
+		FallbackSchemaVersion,
+	)
+	if err != nil {
+		tdb.t.Fatalf("Failed to insert schema version: %v", err)
 	}
 }
 
