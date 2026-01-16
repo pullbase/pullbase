@@ -80,7 +80,7 @@ func setupWebhookHandler(t *testing.T) (*server.WebhookHandlers, *recordingServe
 	err = monitor.LoadEnvironmentsFromDatabase(ctx)
 	require.NoError(t, err, "failed to load environments into monitor cache")
 
-	handlers := server.NewWebhookHandlers(monitor, logger)
+	handlers := server.NewWebhookHandlers(monitor, tdb.Repository(), logger)
 	handlers.SetAuditRecorder(func(*http.Request, string, string, string, interface{}) {})
 
 	return handlers, recordingRepo, secret, monitor

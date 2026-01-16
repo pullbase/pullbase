@@ -25,14 +25,16 @@ import (
 // WebhookHandlers handles webhook-related HTTP requests
 type WebhookHandlers struct {
 	monitor *gitmonitor.EnvironmentMonitor
+	repo    *database.Repository
 	logger  *logging.Logger
 	audit   func(r *http.Request, action, resourceType, resourceID string, details interface{})
 }
 
 // NewWebhookHandlers creates new webhook handlers
-func NewWebhookHandlers(monitor *gitmonitor.EnvironmentMonitor, logger *logging.Logger) *WebhookHandlers {
+func NewWebhookHandlers(monitor *gitmonitor.EnvironmentMonitor, repo *database.Repository, logger *logging.Logger) *WebhookHandlers {
 	return &WebhookHandlers{
 		monitor: monitor,
+		repo:    repo,
 		logger:  logger,
 	}
 }
@@ -57,6 +59,11 @@ func (h *WebhookHandlers) GetEnvironmentMonitor() *gitmonitor.EnvironmentMonitor
 func (h *WebhookHandlers) HandleWebhook(w http.ResponseWriter, r *http.Request) {
 	if r.Method != http.MethodPost {
 		http.Error(w, "Method not allowed", http.StatusMethodNotAllowed)
+		return
+	}
+
+	if h.monitor == nil {
+		http.Error(w, "Git integration is disabled", http.StatusServiceUnavailable)
 		return
 	}
 
@@ -287,13 +294,22 @@ func (h *WebhookHandlers) CreateEnvironment(w http.ResponseWriter, r *http.Reque
 		Status:         string(models.StatusPending),
 	}
 
-	// Add environment to monitor
-	if err := h.monitor.AddEnvironment(r.Context(), env); err != nil {
-		h.logger.Error("Failed to add environment",
-			"name", req.Name,
-			"error", err)
-		http.Error(w, fmt.Sprintf("Failed to add environment: %v", err), http.StatusInternalServerError)
-		return
+	if h.monitor != nil {
+		if err := h.monitor.AddEnvironment(r.Context(), env); err != nil {
+			h.logger.Error("Failed to add environment",
+				"name", req.Name,
+				"error", err)
+			http.Error(w, fmt.Sprintf("Failed to add environment: %v", err), http.StatusInternalServerError)
+			return
+		}
+	} else {
+		if _, err := h.repo.CreateEnvironment(r.Context(), env.Name, env.RepoURL, env.Branch, false); err != nil {
+			h.logger.Error("Failed to create environment",
+				"name", req.Name,
+				"error", err)
+			http.Error(w, fmt.Sprintf("Failed to create environment: %v", err), http.StatusInternalServerError)
+			return
+		}
 	}
 
 	// Return success
@@ -327,13 +343,17 @@ func (h *WebhookHandlers) ListEnvironments(w http.ResponseWriter, r *http.Reques
 		return
 	}
 
-	environments, err := h.monitor.GetRepository().ListEnvironments(r.Context())
+	environments, _, err := h.repo.ListEnvironments(r.Context(), 10000, 0)
 	if err != nil {
 		h.logger.Error("Failed to list environments", "error", err)
 		http.Error(w, "Failed to list environments", http.StatusInternalServerError)
 		return
 	}
-	statuses := h.monitor.GetAllWebhookStatuses()
+
+	var statuses []*gitmonitor.WebhookStatus
+	if h.monitor != nil {
+		statuses = h.monitor.GetAllWebhookStatuses()
+	}
 	sortKey := strings.ToLower(r.URL.Query().Get("sort"))
 
 	// Create a map of statuses by environment ID
@@ -439,7 +459,7 @@ func (h *WebhookHandlers) GetEnvironment(w http.ResponseWriter, r *http.Request)
 		return
 	}
 
-	foundEnv, err := h.monitor.GetRepository().GetEnvironment(r.Context(), environmentID)
+	foundEnv, err := h.repo.GetEnvironment(r.Context(), environmentID)
 	if err != nil {
 		if errors.Is(err, database.ErrNotFound) {
 			http.Error(w, "Environment not found", http.StatusNotFound)
@@ -450,7 +470,10 @@ func (h *WebhookHandlers) GetEnvironment(w http.ResponseWriter, r *http.Request)
 		return
 	}
 
-	webhookStatus, _ := h.monitor.GetWebhookStatus(environmentID)
+	var webhookStatus *gitmonitor.WebhookStatus
+	if h.monitor != nil {
+		webhookStatus, _ = h.monitor.GetWebhookStatus(environmentID)
+	}
 
 	response := map[string]interface{}{
 		"id":                       foundEnv.ID,
@@ -530,22 +553,17 @@ func (h *WebhookHandlers) UpdateEnvironment(w http.ResponseWriter, r *http.Reque
 		return
 	}
 
-	// Check if environment exists
-	allEnvironments := h.monitor.GetAllEnvironments()
-	var foundEnv *gitmonitor.Environment
-	for _, env := range allEnvironments {
-		if env.ID == environmentID {
-			foundEnv = env
-			break
+	foundEnv, err := h.repo.GetEnvironment(r.Context(), environmentID)
+	if err != nil {
+		if errors.Is(err, database.ErrNotFound) {
+			http.Error(w, "Environment not found", http.StatusNotFound)
+			return
 		}
-	}
-
-	if foundEnv == nil {
-		http.Error(w, "Environment not found", http.StatusNotFound)
+		h.logger.Error("Failed to get environment", "environment_id", environmentID, "error", err)
+		http.Error(w, "Failed to get environment", http.StatusInternalServerError)
 		return
 	}
 
-	repo := h.monitor.GetRepository()
 	branch := req.Branch
 	if branch == "" {
 		branch = foundEnv.Branch
@@ -563,7 +581,7 @@ func (h *WebhookHandlers) UpdateEnvironment(w http.ResponseWriter, r *http.Reque
 	}
 
 	secretToPersist := foundEnv.WebhookSecret
-	if strings.TrimSpace(req.WebhookSecret) != "" {
+	if strings.TrimSpace(req.WebhookSecret) != "" && h.monitor != nil {
 		encryptedSecret, err := h.monitor.EncryptWebhookSecret(strings.TrimSpace(req.WebhookSecret))
 		if err != nil {
 			h.logger.Error("Failed to encrypt webhook secret",
@@ -575,7 +593,7 @@ func (h *WebhookHandlers) UpdateEnvironment(w http.ResponseWriter, r *http.Reque
 		secretToPersist = encryptedSecret
 	}
 
-	if err := repo.UpdateEnvironmentDetails(r.Context(), environmentID, req.Name, req.RepoURL, branch, deployPath, req.InstallationID, req.AppSlug, req.RepositoryID, secretToPersist, req.AutoReconcile, req.NotificationWebhookURL); err != nil {
+	if err := h.repo.UpdateEnvironmentDetails(r.Context(), environmentID, req.Name, req.RepoURL, branch, deployPath, req.InstallationID, req.AppSlug, req.RepositoryID, secretToPersist, req.AutoReconcile, req.NotificationWebhookURL); err != nil {
 		h.logger.Error("Failed to update environment",
 			"environment_id", environmentID,
 			"error", err)
@@ -583,10 +601,12 @@ func (h *WebhookHandlers) UpdateEnvironment(w http.ResponseWriter, r *http.Reque
 		return
 	}
 
-	if err := h.monitor.LoadEnvironmentsFromDatabase(r.Context()); err != nil {
-		h.logger.Warn("Failed to refresh environment cache after update",
-			"environment_id", environmentID,
-			"error", err)
+	if h.monitor != nil {
+		if err := h.monitor.LoadEnvironmentsFromDatabase(r.Context()); err != nil {
+			h.logger.Warn("Failed to refresh environment cache after update",
+				"environment_id", environmentID,
+				"error", err)
+		}
 	}
 
 	h.recordAudit(r, "update", "environment", fmt.Sprintf("%d", environmentID), map[string]interface{}{
@@ -627,27 +647,33 @@ func (h *WebhookHandlers) DeleteEnvironment(w http.ResponseWriter, r *http.Reque
 		return
 	}
 
-	// Check if environment exists before attempting to delete
-	allEnvironments := h.monitor.GetAllEnvironments()
-	var foundEnv *gitmonitor.Environment
-	for _, env := range allEnvironments {
-		if env.ID == environmentID {
-			foundEnv = env
-			break
+	foundEnv, err := h.repo.GetEnvironment(r.Context(), environmentID)
+	if err != nil {
+		if errors.Is(err, database.ErrNotFound) {
+			http.Error(w, "Environment not found", http.StatusNotFound)
+			return
 		}
-	}
-
-	if foundEnv == nil {
-		http.Error(w, "Environment not found", http.StatusNotFound)
+		h.logger.Error("Failed to get environment", "environment_id", environmentID, "error", err)
+		http.Error(w, "Failed to get environment", http.StatusInternalServerError)
 		return
 	}
 
-	if err := h.monitor.RemoveEnvironment(r.Context(), environmentID); err != nil {
-		h.logger.Error("Failed to remove environment",
-			"environment_id", environmentID,
-			"error", err)
-		http.Error(w, fmt.Sprintf("Failed to remove environment: %v", err), http.StatusInternalServerError)
-		return
+	if h.monitor != nil {
+		if err := h.monitor.RemoveEnvironment(r.Context(), environmentID); err != nil {
+			h.logger.Error("Failed to remove environment",
+				"environment_id", environmentID,
+				"error", err)
+			http.Error(w, fmt.Sprintf("Failed to remove environment: %v", err), http.StatusInternalServerError)
+			return
+		}
+	} else {
+		if err := h.repo.GetEnvironmentRepository().DeleteEnvironment(r.Context(), environmentID); err != nil {
+			h.logger.Error("Failed to delete environment",
+				"environment_id", environmentID,
+				"error", err)
+			http.Error(w, fmt.Sprintf("Failed to delete environment: %v", err), http.StatusInternalServerError)
+			return
+		}
 	}
 
 	h.recordAudit(r, "delete", "environment", fmt.Sprintf("%d", environmentID), map[string]interface{}{
@@ -669,7 +695,10 @@ func (h *WebhookHandlers) GetWebhookStatuses(w http.ResponseWriter, r *http.Requ
 		return
 	}
 
-	statuses := h.monitor.GetAllWebhookStatuses()
+	var statuses []*gitmonitor.WebhookStatus
+	if h.monitor != nil {
+		statuses = h.monitor.GetAllWebhookStatuses()
+	}
 
 	w.Header().Set("Content-Type", "application/json")
 	json.NewEncoder(w).Encode(map[string]interface{}{
@@ -697,24 +726,18 @@ func (h *WebhookHandlers) ToggleEnvironmentAutoReconcile(w http.ResponseWriter, 
 		return
 	}
 
-	// Check if environment exists
-	allEnvironments := h.monitor.GetAllEnvironments()
-	var foundEnv *gitmonitor.Environment
-	for _, env := range allEnvironments {
-		if env.ID == environmentID {
-			foundEnv = env
-			break
+	_, err = h.repo.GetEnvironment(r.Context(), environmentID)
+	if err != nil {
+		if errors.Is(err, database.ErrNotFound) {
+			http.Error(w, "Environment not found", http.StatusNotFound)
+			return
 		}
-	}
-
-	if foundEnv == nil {
-		http.Error(w, "Environment not found", http.StatusNotFound)
+		h.logger.Error("Failed to get environment", "environment_id", environmentID, "error", err)
+		http.Error(w, "Failed to get environment", http.StatusInternalServerError)
 		return
 	}
 
-	// Toggle auto-reconcile in database
-	repo := h.monitor.GetRepository()
-	newAutoReconcile, err := repo.ToggleEnvironmentAutoReconcile(r.Context(), environmentID)
+	newAutoReconcile, err := h.repo.GetEnvironmentRepository().ToggleEnvironmentAutoReconcile(r.Context(), environmentID)
 	if err != nil {
 		h.logger.Error("Failed to toggle auto-reconcile for environment",
 			"environment_id", environmentID,

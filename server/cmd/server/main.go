@@ -307,9 +307,7 @@ func main() {
 	}
 
 	var webhookHandlers *server.WebhookHandlers
-	if environmentMonitor != nil {
-		webhookHandlers = server.NewWebhookHandlers(environmentMonitor, logger)
-	}
+	webhookHandlers = server.NewWebhookHandlers(environmentMonitor, repo, logger)
 
 	api := &server.API{
 		Repo:             repo,
