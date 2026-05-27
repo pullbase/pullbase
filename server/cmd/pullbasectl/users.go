@@ -232,3 +232,72 @@ func runUsersCreate(args []string) error {
 	fmt.Printf("User created: %s (role: %s, id: %d)\n", createResp.User.Username, createResp.User.Role, createResp.User.ID)
 	return nil
 }
+
+func runUsersDelete(args []string) error {
+	fs := flag.NewFlagSet("users delete", flag.ContinueOnError)
+	fs.SetOutput(os.Stderr)
+
+	serverURL := fs.String("server-url", "", "Pullbase server base URL")
+	adminToken := fs.String("admin-token", "", "Admin JWT token")
+	username := fs.String("username", "", "Admin username")
+	password := fs.String("password", "", "Admin password")
+	passwordFile := fs.String("password-file", "", "Path to file containing admin password")
+	caCertPath := fs.String("ca-cert", "", "Path to CA certificate bundle")
+	insecureSkipVerify := fs.Bool("insecure-skip-verify", false, "Skip TLS verification (NOT recommended)")
+
+	// userID of user to delete
+	userID := fs.Int("user-id", 0, "User ID of user to delete")
+	deleteAcctUsername := fs.String("delete-acct-username", "", "Confirm username for account to delete")
+
+	if err := fs.Parse(args); err != nil {
+		return err
+	}
+
+	targetURL := strings.TrimSpace(*serverURL)
+	if targetURL == "" {
+		return errors.New("--server-url is required")
+	}
+	targetURL = strings.TrimSuffix(targetURL, "/")
+
+	client, token, err := resolveAdminCredentials(adminAuthConfig{
+		ServerURL:    targetURL,
+		AdminToken:   *adminToken,
+		Username:     *username,
+		Password:     *password,
+		PasswordFile: *passwordFile,
+		CACertPath:   *caCertPath,
+		Insecure:     *insecureSkipVerify,
+	})
+	if err != nil {
+		return err
+	}
+
+	if *userID <= 0 {
+		return errors.New("--user-id must be a positive integer")
+	}
+
+	delAcctUsername := strings.TrimSpace(*deleteAcctUsername)
+	if delAcctUsername == "" {
+		return errors.New("--delete-acct-username is required")
+	}
+	if !bootstrapUsernamePattern.MatchString(delAcctUsername) {
+		return errors.New("username must be 3-64 characters and contain only letters, numbers, '.', '_' or '-'")
+	}
+
+	payload := map[string]string{
+		"confirm_username": delAcctUsername,
+	}
+
+	deleteURL := fmt.Sprintf("%s/api/v1/users/%d", targetURL, *userID)
+	resp, err := authorizedRequest(client, http.MethodDelete, deleteURL, token, payload)
+	if err != nil {
+		return err
+	}
+	defer resp.Body.Close()
+	if resp.StatusCode != http.StatusNoContent {
+		return readAPIError(resp)
+	}
+	
+	fmt.Printf("User: %s with id: %d successfully deleted", delAcctUsername, *userID)
+	return nil
+}

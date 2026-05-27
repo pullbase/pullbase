@@ -263,3 +263,56 @@ func TestRunUsersList(t *testing.T) {
 		t.Fatalf("expected output to include username, got %q", output)
 	}
 }
+
+func TestRunUsersDelete(t *testing.T) {
+	mux := http.NewServeMux()
+	mux.HandleFunc("/api/v1/users/{userID}", func(w http.ResponseWriter, r *http.Request){
+		if r.Method != http.MethodDelete {
+			t.Fatalf("expected %s, got %s", http.MethodDelete, r.Method)
+		}
+		if auth := r.Header.Get("Authorization"); auth != "Bearer admin-token" {
+			t.Fatalf("unexpected auth header: %s", auth)
+		}
+
+		userID := r.PathValue("userID")
+		if userID != "1" {
+			t.Fatalf("expected userID: %d, got:%s", 1, userID)
+		}
+		payload := map[string]string{}
+		if err := json.NewDecoder(r.Body).Decode(&payload); err != nil {
+			t.Fatalf("runUsersDelete failed: %v", err)
+		}
+		accountName := payload["confirm_username"]
+		if accountName != "SomeAccount123" {
+			t.Fatalf(
+				"expected username: %s, got: %s", 
+				"SomeAccount123", accountName,
+			)
+		}
+
+		w.WriteHeader(http.StatusNoContent)
+	})
+
+	srv := httptest.NewServer(mux)
+	defer srv.Close()
+
+	original := newHTTPClient
+	defer func() { newHTTPClient = original }()
+	newHTTPClient = func(string, bool) (*http.Client, error) { return srv.Client(), nil }
+
+	output := captureOutput(t, func() {
+		err := runUsersDelete([]string{
+			"--server-url", srv.URL,
+			"--admin-token", "admin-token",
+			"--user-id", "1",
+			"--delete-acct-username", "SomeAccount123",
+		})
+		if err != nil {
+			t.Fatalf("runUsersDelete failed: %v", err)
+		}
+	})
+
+	if !strings.Contains(output, "User: SomeAccount123") {
+		t.Fatalf("expected output to include username, got %q", output)
+	}
+}
