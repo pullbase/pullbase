@@ -155,6 +155,7 @@ func newUsersCommand() *cobra.Command {
 	cmd.AddCommand(
 		newUsersListCommand(),
 		newUsersCreateCommand(),
+		newUsersDeleteCommand(),
 	)
 
 	return cmd
@@ -193,6 +194,25 @@ func newUsersCreateCommand() *cobra.Command {
 
 	cmd.SetHelpFunc(func(cmd *cobra.Command, args []string) {
 		_ = runUsersCreate([]string{"--help"})
+	})
+
+	return cmd
+}
+
+func newUsersDeleteCommand() *cobra.Command {
+	cmd := &cobra.Command{
+		Use:                "delete",
+		Short:              "Delete an existing Pullbase user",
+		DisableFlagParsing: true,
+		SilenceUsage:       true,
+		SilenceErrors:      true,
+		RunE: func(cmd *cobra.Command, args []string) error {
+			return runUsersDelete(args)
+		},
+	}
+
+	cmd.SetHelpFunc(func(cmd *cobra.Command, args []string) {
+		_ = runUsersDelete([]string{"--help"})
 	})
 
 	return cmd
