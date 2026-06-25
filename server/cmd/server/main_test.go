@@ -4,6 +4,7 @@ import (
 	"crypto/ecdsa"
 	"crypto/tls"
 	"crypto/x509"
+	"encoding/base64"
 	"encoding/pem"
 	"os"
 	"path/filepath"
@@ -178,5 +179,16 @@ func TestGenerateSelfSignedCertsCurrentDirectory(t *testing.T) {
 	}
 	if _, err := os.Stat("server.key"); os.IsNotExist(err) {
 		t.Error("key file was not created in current directory")
+	}
+}
+
+func TestGenerateBootstrapSecret(t *testing.T) {
+	secret, err := generateBootstrapSecret()
+	if err != nil {
+		t.Fatalf("failed to generate bootstrap secret: %v", err)
+	}
+	_, err = base64.RawURLEncoding.DecodeString(secret)
+	if err != nil {
+		t.Errorf("failed to decode base64 encoded secret: %v", err)
 	}
 }
