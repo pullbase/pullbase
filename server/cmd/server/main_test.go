@@ -281,6 +281,10 @@ func TestReadBootstrapSecretFile(t *testing.T) {
 				if err != nil {
 					t.Fatalf("failed to create secret file: %v", err)
 				}
+				err = file.Chmod(0o666)
+				if err != nil {
+					t.Fatalf("failed to change file permissions: %v", err)
+				}
 				if err = file.Close(); err != nil {
 					t.Fatal("failed to close secret file")
 				}
