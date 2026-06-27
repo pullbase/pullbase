@@ -8,6 +8,7 @@ import (
 	"encoding/pem"
 	"os"
 	"path/filepath"
+	"strings"
 	"testing"
 	"time"
 )
@@ -187,8 +188,148 @@ func TestGenerateBootstrapSecret(t *testing.T) {
 	if err != nil {
 		t.Fatalf("failed to generate bootstrap secret: %v", err)
 	}
+	if secret == "" {
+		t.Fatal("generated bootstrap secret is empty")
+	}
 	_, err = base64.RawURLEncoding.DecodeString(secret)
 	if err != nil {
 		t.Errorf("failed to decode base64 encoded secret: %v", err)
+	}
+}
+
+func TestWriteBootstrapSecretFile(t *testing.T) {
+	tempDir := t.TempDir()
+	secretPath := filepath.Join(tempDir, "bootstrap.secret")
+	secret, err := generateBootstrapSecret()
+	if err != nil {
+		t.Fatalf("failed to generate bootstrap secret: %v", err)
+	}
+	err = writeBootstrapSecretFile(secretPath, secret)
+	if err != nil {
+		t.Fatalf("failed to write bootstrap secret file: %v", err)
+	}
+	info, err := os.Stat(secretPath)
+	if err != nil {
+		t.Fatalf("failed to stat secret file: %v", err)
+	}
+	if info.Mode().Perm() != 0o600 {
+		t.Errorf("bootstrap secret file permissions = %o, want 0600", info.Mode().Perm())
+	}
+	fileContent, err := readBootstrapSecretFile(secretPath)
+	if err != nil {
+		t.Fatalf("failed to read bootstrap secret file: %v", err)
+	}
+	if fileContent != secret {
+		t.Fatalf("expected file content to be: %s, got: %s", secret, fileContent)
+	}
+}
+func TestWriteBootstrapSecretFileDifferentDirectory(t *testing.T) {
+	tempDir := t.TempDir()
+	secretPath := filepath.Join(tempDir, "secrets", "bootstrap.secret")
+	secret, err := generateBootstrapSecret()
+	if err != nil {
+		t.Fatalf("failed to generate bootstrap secret: %v", err)
+	}
+	err = writeBootstrapSecretFile(secretPath, secret)
+	if err != nil {
+		t.Fatalf("failed to write bootstrap secret file: %v", err)
+	}
+	dirInfo, err := os.Stat(filepath.Dir(secretPath))
+	if err != nil {
+		t.Fatalf("failed to stat bootstrap secret directory: %v", err)
+	}
+	if dirInfo.Mode().Perm() != 0o700 {
+		t.Errorf("bootstrap secret directory permissions = %o, want 0700", dirInfo.Mode().Perm())
+	}
+}
+
+func TestWriteBootstrapSecretFileEmptyPath(t *testing.T) {
+	err := writeBootstrapSecretFile("", "secret")
+	if err == nil {
+		t.Error("expected error when path is empty, got none")
+	}
+}
+
+func TestReadBootstrapSecretFile(t *testing.T) {
+	tests := []struct{
+		name string
+		pathFunc func(t *testing.T) (path, secret string)
+		wantError bool
+		errSubString string
+	}{
+		{
+			name: "path is invalid",
+			pathFunc: func(t *testing.T) (string, string) { return "path/does-not-exist", "" },
+			wantError: true,
+			errSubString: "failed to stat path",
+		},
+		{
+			name: "path is directory",
+			pathFunc: func(t *testing.T) (string, string) {
+				tempDir := t.TempDir()
+				return tempDir, ""
+			},
+			wantError: true,
+			errSubString: "is a directory",
+		},
+		{
+			name: "file permissions are invalid",
+			pathFunc: func(t *testing.T) (string, string) {
+				tempDir := t.TempDir()
+				secretPath := filepath.Join(tempDir, "bootstrap.secret")
+				file, err := os.Create(secretPath)
+				if err != nil {
+					t.Fatalf("failed to create secret file: %v", err)
+				}
+				if err = file.Close(); err != nil {
+					t.Fatal("failed to close secret file")
+				}
+				return secretPath, ""
+			},
+			wantError: true,
+			errSubString: "must not be group- or world-accessible",
+		},
+		{
+			name: "valid secret file",
+			pathFunc: func(t *testing.T) (string, string) {
+				tempDir := t.TempDir()
+				secretPath := filepath.Join(tempDir, "bootstrap.secret")
+				secret, err := generateBootstrapSecret()
+				if err != nil {
+					t.Fatalf("failed to generate bootstrap secret: %v", err)
+				}
+				err = writeBootstrapSecretFile(secretPath, secret)
+				if err != nil {
+					t.Fatalf("failed to write bootstrap secret file: %v", err)
+				}
+				return secretPath, secret
+			},
+			wantError: false,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T){
+			secretPath, secret := tt.pathFunc(t)
+			readSecret, err := readBootstrapSecretFile(secretPath)
+			if tt.wantError {
+				if err == nil {
+					t.Fatalf("expected error when %s, got none", tt.name)
+				}
+				if !strings.Contains(err.Error(), tt.errSubString) {
+					t.Fatalf("expected error to contain %q, got: %v", tt.errSubString, err)
+				}
+				return
+			}
+			if err != nil {
+				t.Fatalf("unexpected error when reading secret: %v", err)
+			}
+			if readSecret == "" {
+				t.Fatalf("expected to read a secret, got empty string")
+			}
+			if secret != readSecret {
+				t.Fatalf("expected read secret to be: %s, got: %s", secret, readSecret)
+			}
+		})
 	}
 }

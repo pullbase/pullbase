@@ -163,7 +163,7 @@ func generateCertificate(privateKey any) ([]byte, []byte, error) {
 func readBootstrapSecretFile(path string) (string, error) {
 	info, err := os.Stat(path)
 	if err != nil {
-		return "", err
+		return "", fmt.Errorf("failed to stat path %q: %w", path, err)
 	}
 	if info.IsDir() {
 		return "", fmt.Errorf("bootstrap secret file %q is a directory", path)
